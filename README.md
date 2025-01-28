@@ -14,4 +14,4 @@ Windows需要安装python3+，确保pip和python添加到系统路径中，点�
 自动下载到当前目录下downloads文件夹，并生成歌单列表文件  
   
 ## 鸣谢
-- (pyncm)[https://github.com/mos9527/pyncm]
+- [pyncm](https://github.com/mos9527/pyncm)
