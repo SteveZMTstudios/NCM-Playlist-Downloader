@@ -1,4 +1,4 @@
 @echo off
 
-pip install qrcode requests pyncm
+pip install qrcode requests pillow pyncm
 python script.py
