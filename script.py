@@ -9,8 +9,6 @@ except ImportError:
     COLORAMA_INSTALLED = False
     if platform.system() == 'Windows':
         os.system('pip install colorama')
-    else:
-        os.system('pip3 install colorama')
 
 def get_qrcode():
     uuid = login.LoginQrcodeUnikey()["unikey"]

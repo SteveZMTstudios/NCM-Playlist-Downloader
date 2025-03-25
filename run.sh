@@ -39,19 +39,19 @@ install_system_packages() {
         "apt")
             echo "使用 apt 安装系统级 Python 包..."
             sudo apt-get update
-            sudo apt-get install -y python3-requests python3-pillow python3-pip python3-qrcode python3-venv python3-full
+            sudo apt-get install -y python3-requests python3-pillow python3-pip python3-qrcode python3-venv python3-full python3-colorama
             ;;
         "dnf"|"yum")
             echo "使用 ${PKG_MANAGER} 安装系统级 Python 包..."
-            sudo $PKG_MANAGER install -y python3-requests python3-pillow python3-pip python3-qrcode 
+            sudo $PKG_MANAGER install -y python3-requests python3-pillow python3-pip python3-qrcode python3-colorama 
             ;;
         "pacman")
             echo "使用 pacman 安装系统级 Python 包..."
-            sudo pacman -Sy python-requests python-pillow python-pip python-qrcode 
+            sudo pacman -Sy python-requests python-pillow python-pip python-qrcode  python-colorama 
             ;;
         "zypper")
             echo "使用 zypper 安装系统级 Python 包..."
-            sudo zypper install -y python3-requests python3-Pillow python3-pip python3-qrcode 
+            sudo zypper install -y python3-requests python3-Pillow python3-pip python3-qrcode python3-colorama 
             ;;
         *)
             echo "警告: 未知的包管理器，无法安装系统级 Python 包"
