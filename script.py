@@ -152,7 +152,7 @@ def download_and_save_track(track_id, track_name, artist_name, level):
         else:
             sys.stdout.write("\r\033[1A\033[K")  
             write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接")
-            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt")
+            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt\033[0m")
     except (KeyError, IndexError) as e:
         sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}")
