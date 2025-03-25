@@ -1,14 +1,24 @@
 import sys, os, json, qrcode, time, pyncm, requests, re, platform, subprocess
 from pyncm.apis import playlist, track, login
 
+try:
+    from colorama import init, Fore, Back, Style
+    init(autoreset=False)
+    COLORAMA_INSTALLED = True
+except ImportError:
+    COLORAMA_INSTALLED = False
+    if platform.system() == 'Windows':
+        os.system('pip install colorama')
+    else:
+        os.system('pip3 install colorama')
+
 def get_qrcode():
     uuid = login.LoginQrcodeUnikey()["unikey"]
     url = f"https://music.163.com/login?codekey={uuid}"
     img = qrcode.make(url)
     img.save('ncm.png')
-    print("\033[32m✓\033[0m 二维码已保存为'ncm.png'，请使用网易云音乐APP扫码登录。")
+    print("\033[32m✓ \033[0m二维码已保存为'ncm.png'，请使用网易云音乐APP扫码登录。")
     
-    # 根据操作系统类型打开图片
     try:
         open_image('ncm.png')
     except Exception as e:
@@ -19,7 +29,7 @@ def get_qrcode():
         if rsp["code"] == 803:
             session = pyncm.GetCurrentSession()
             login.WriteLoginInfo(login.GetCurrentLoginStatus(), session)
-            print("\033[32m✓\033[0m 登录成功")
+            print("\033[32m✓ \033[0m登录成功")
             return session
         elif rsp["code"] == 800:
             print("二维码已过期，请重新尝试。")
@@ -47,7 +57,7 @@ def save_session_to_file(session, filename='session.json'):
     with open(filename, 'w') as f:
         session_data = pyncm.DumpSessionAsString(session)
         json.dump(session_data, f)
-    print("\033[32m✓\033[0m 会话已保存。")
+    print("\033[32m✓ \033[0m会话已保存。")
 
 def get_playlist_tracks_and_save_info(playlist_id, level):
     try:
@@ -62,7 +72,7 @@ def get_playlist_tracks_and_save_info(playlist_id, level):
                 track_name = track_info['name']
                 artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
                 f.write(f"{track_id} - {track_name} - {artist_name}\n")
-        print(f"\033[32m✓\033[0m 歌单信息已保存到 {playlist_info_filename}")
+        print(f"\033[32m✓ \033[0m歌单信息已保存到 {playlist_info_filename}")
         # 下载每首曲目
         for track_info in tracks['songs']:
             track_id = track_info['id']
@@ -70,7 +80,7 @@ def get_playlist_tracks_and_save_info(playlist_id, level):
             artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
             download_and_save_track(track_id, track_name, artist_name, level)
         print("====================================================")
-        print("\033[32m✓\033[0m 操作已完成，歌曲已下载并保存到 downloads 文件夹中。")
+        print("\033[32m✓ \033[0m操作已完成，歌曲已下载并保存到 downloads 文件夹中。")
     except Exception as e:
         print(f"\033[31m× 获取歌单列表或下载歌曲时出错: {e}\033[0m")
 
@@ -82,7 +92,7 @@ def get_track_info(track_id, level):
         track_name = track_info['name']
         artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
         download_and_save_track(track_id, track_name, artist_name, level)
-        print(f"\033[32m✓\033[0m 歌曲 {track_name} 已保存到 downloads 文件夹中。")
+        print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 downloads 文件夹中。")
     except Exception as e:
         print(f"\033[31m! 获取歌曲信息时出错: {e}\033[0m")
 
@@ -112,10 +122,11 @@ def download_and_save_track(track_id, track_name, artist_name, level):
             safe_filepath = os.path.join(download_dir, safe_filename)
             
             file_size = int(response.headers.get('content-length', 0))
-            print("====================================================" + " " * 25 + f"\n\033[34m- 正在下载: {safe_filename}\033[0m" + " " * 25)
+            print("===============================================================" + " " * 25 + f"\n\033[34m- 正在下载: {safe_filename}\033[0m" + " " * 31)
             
             downloaded = 0
             progress_bar_length = 30
+            speed = 0  
             
             with open(safe_filepath, 'wb') as f:
                 start_time = time.time()
@@ -132,12 +143,12 @@ def download_and_save_track(track_id, track_name, artist_name, level):
                             elapsed_time = time.time() - start_time
                             if elapsed_time > 0:
                                 speed = downloaded / elapsed_time / 1024  # KB/s
-                                
+                            
                             sys.stdout.write(f"\r[{bar}] {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s")
                             sys.stdout.flush()
             
             sys.stdout.write("\r\033[2A\033[K")  
-            print(f"\033[32m✓\033[0m 已下载: {safe_filename}")
+            print(f"\033[32m✓ \033[0m已下载: {safe_filename}")
         else:
             sys.stdout.write("\r\033[1A\033[K")  
             write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接")
@@ -166,7 +177,7 @@ def load_session_from_file(filename='session.json'):
             session_data = json.load(f)
         session = pyncm.LoadSessionFromString(session_data)
         pyncm.SetCurrentSession(session)
-        print("\033[32m✓\033[0m 会话已从文件加载。")
+        print("\033[32m✓ \033[0m会话已从文件加载。")
         return session
     else:
         return None
@@ -174,7 +185,7 @@ def load_session_from_file(filename='session.json'):
 if __name__ == "__main__":
     session = load_session_from_file()
     if session:
-        print("\033[32m✓\033[0m 使用保存的会话登录。")
+        print("  使用保存的会话登录。")
     else:
         try:
             session = get_qrcode()

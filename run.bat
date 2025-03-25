@@ -1,29 +1,38 @@
 @echo off
 
 if not exist venv (
-    echo åˆ›å»ºè™šæ‹Ÿç¯å¢ƒ...
+    echo ´´½¨ĞéÄâ»·¾³...
     python -m venv venv
 )
 
 call venv\Scripts\activate.bat
 
-REM æ£€æŸ¥ä¾èµ–æ˜¯å¦å·²å®‰è£…
-set DEPS_INSTALLED=false
-pip freeze > temp_installed.txt
-findstr /i "qrcode requests pillow pyncm" temp_installed.txt > nul 2>&1
-if %errorlevel% equ 0 (
-    echo ä¾èµ–å·²å®‰è£…ã€‚
-    set DEPS_INSTALLED=true
-)
-del temp_installed.txt
+@REM REM ¼ì²éÒÀÀµÊÇ·ñÒÑ°²×°
+@REM set DEPS_INSTALLED=true
+@REM pip freeze > temp_installed.txt
 
-if "%DEPS_INSTALLED%"=="false" (
-    echo å®‰è£…ä¾èµ–, è¿™å¯èƒ½éœ€è¦ä¸€æ®µæ—¶é—´...
+@REM REM ·Ö±ğ¼ì²éÃ¿¸öÒÀÀµ
+@REM findstr /i "qrcode" temp_installed.txt > nul 2>&1
+@REM if %errorlevel% neq 0 set DEPS_INSTALLED=false
+
+@REM findstr /i "requests" temp_installed.txt > nul 2>&1
+@REM if %errorlevel% neq 0 set DEPS_INSTALLED=false
+
+@REM findstr /i "pillow" temp_installed.txt > nul 2>&1
+@REM if %errorlevel% neq 0 set DEPS_INSTALLED=false
+
+@REM findstr /i "pyncm" temp_installed.txt > nul 2>&1
+@REM if %errorlevel% neq 0 set DEPS_INSTALLED=false
+
+@REM del temp_installed.txt
+
+@REM if "%DEPS_INSTALLED%"=="false" (
+    echo °²×°ÒÀÀµ, Õâ¿ÉÄÜĞèÒªÒ»¶ÎÊ±¼ä...
     python -m pip install --upgrade pip
     pip install -r requirements.txt
-) else (
-    echo ä¾èµ–æ£€æŸ¥å®Œæˆï¼Œç›´æ¥è¿è¡Œè„šæœ¬...
-)
+@REM ) else (
+@REM     echo ÒÀÀµ¼ì²éÍê³É£¬Ö±½ÓÔËĞĞ½Å±¾...
+@REM )
 
 python script.py
 
