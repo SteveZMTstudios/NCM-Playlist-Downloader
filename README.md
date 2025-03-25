@@ -24,7 +24,7 @@ cd NCM-Playlist-Downloader
 .\run.bat
 ```
 
-### Linux
+### Linux / Android Termux
 
 ```bash
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
@@ -38,7 +38,7 @@ cd NCM-Playlist-Downloader
 2. 获取歌单id，在歌单界面选择分享，得到网址：`https://music.163.com/m/playlist?id=12345678&creatorId=666666`
 其中`playlist?id=`后面的数字为歌单id  
 或者回车，输入歌曲id  
-3. 选择音质：`极高exhigh` `无损lossless` `高清hires` `超清jymaster` 默认无损  
+3. 选择音质：极高`exhigh` 无损`lossless` 高清`hires` 超清`jymaster` 默认无损  
 
 
 ## 鸣谢
