@@ -95,7 +95,6 @@ def download_and_save_track(track_id, track_name, artist_name, level):
         url = url_info['data'][0]['url']
         if url:
             response = requests.get(url, stream=True)
-            # 检查响应状态码
             if response.status_code != 200:
                 print(f"\033[31m×获取 URL 时出错: {response.status_code} - {response.text}\033[0m")
                 write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}")
@@ -109,21 +108,46 @@ def download_and_save_track(track_id, track_name, artist_name, level):
             download_dir = "downloads"
             os.makedirs(download_dir, exist_ok=True)
 
-            # 对文件名部分进行安全处理
             safe_filename = make_safe_filename(f"{track_name} - {artist_name}{os.path.splitext(filename)[1]}")
             safe_filepath = os.path.join(download_dir, safe_filename)
+            
+            file_size = int(response.headers.get('content-length', 0))
+            print("====================================================" + " " * 25 + f"\n\033[34m- 正在下载: {safe_filename}\033[0m" + " " * 25)
+            
+            downloaded = 0
+            progress_bar_length = 30
+            
             with open(safe_filepath, 'wb') as f:
+                start_time = time.time()
                 for chunk in response.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
+                        downloaded += len(chunk)
+                        
+                        if file_size > 0:
+                            percent = downloaded / file_size
+                            bar_filled = int(progress_bar_length * percent)
+                            bar = '\033[32m█' * bar_filled + '\033[0m░' * (progress_bar_length - bar_filled)
+                            
+                            elapsed_time = time.time() - start_time
+                            if elapsed_time > 0:
+                                speed = downloaded / elapsed_time / 1024  # KB/s
+                                
+                            sys.stdout.write(f"\r[{bar}] {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s")
+                            sys.stdout.flush()
+            
+            sys.stdout.write("\r\033[2A\033[K")  
             print(f"\033[32m✓\033[0m 已下载: {safe_filename}")
         else:
+            sys.stdout.write("\r\033[1A\033[K")  
             write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接")
             print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt")
     except (KeyError, IndexError) as e:
+        sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}")
         print(f"\033[31m! 访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}\033[0m")
     except Exception as e:
+        sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"下载错误: {e}")
         print(f"\033[31m! 下载歌曲时出错: {e}\033[0m")
 
@@ -133,7 +157,6 @@ def write_to_failed_list(track_id, track_name, artist_name, reason):
         with open(failed_list_path, 'w', encoding='utf-8') as f:
             f.write("此处列举了下载失败的歌曲\n可能的原因：\n1.歌曲为单曲付费曲目 \n2.歌曲已下架 \n3.地区限制（如VPN） \n4.网络问题 \n5.VIP曲目但账号无VIP权限\n=== === === === === === === === === === === ===\n\n")
     
-    # 追加失败信息
     with open(failed_list_path, 'a', encoding='utf-8') as f:
         f.write(f"ID: {track_id} - 歌曲: {track_name} - 艺术家: {artist_name} - 原因: {reason}\n")
 
