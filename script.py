@@ -74,6 +74,7 @@ def download_and_save_track(track_id, track_name, artist_name, level):
             # 检查响应状态码
             if response.status_code != 200:
                 print(f"获取 URL 时出错: {response.status_code} - {response.text}")
+                write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}")
                 return
 
             content_disposition = response.headers.get('content-disposition')
@@ -93,11 +94,24 @@ def download_and_save_track(track_id, track_name, artist_name, level):
                         f.write(chunk)
             print(f"已下载: {safe_filename}")
         else:
-            print(f"无法下载 {track_name} - {artist_name}，可能需要更高的VIP。")
+            write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接")
+            print(f"无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt")
     except (KeyError, IndexError) as e:
+        write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}")
         print(f"访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}")
     except Exception as e:
+        write_to_failed_list(track_id, track_name, artist_name, f"下载错误: {e}")
         print(f"下载歌曲时出错: {e}")
+
+def write_to_failed_list(track_id, track_name, artist_name, reason):
+    failed_list_path = "failed_list.txt"
+    if not os.path.exists(failed_list_path):
+        with open(failed_list_path, 'w', encoding='utf-8') as f:
+            f.write("此处列举了下载失败的歌曲\n可能的原因：\n1.歌曲为单曲付费曲目 \n2.歌曲已下架 \n3.地区限制（如VPN） \n4.网络问题 \n5.VIP曲目但账号无VIP权限\n=== === === === === === === === === === === ===\n\n")
+    
+    # 追加失败信息
+    with open(failed_list_path, 'a', encoding='utf-8') as f:
+        f.write(f"ID: {track_id} - 歌曲: {track_name} - 艺术家: {artist_name} - 原因: {reason}\n")
 
 def load_session_from_file(filename='session.json'):
     if os.path.exists(filename):
