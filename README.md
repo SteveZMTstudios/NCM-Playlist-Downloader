@@ -6,6 +6,12 @@
 
 自动下载到当前目录下downloads文件夹，并生成歌单列表文件  
 
+不消耗网易云音乐的下载次数，支持无损音质下载
+
+可同步下载歌词（包括翻译）和元数据
+
+使用简单，只需扫码登录，输入歌单id即可下载
+
 ## 使用方法
 
 确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令
@@ -29,6 +35,7 @@ cd NCM-Playlist-Downloader
 ```bash
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
+chmod +x run.sh
 ./run.sh
 ```
 
