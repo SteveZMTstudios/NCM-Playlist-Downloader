@@ -164,7 +164,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
 
 def add_metadata_to_audio(file_path, track_info, lyrics_content=None):
     if not MUTAGEN_INSTALLED:
-        print("\033[33m! 未安装mutagen库，跳过添加元数据\033[0m")
+        print("\033[33m! 未安装mutagen库，跳过添加元数据\033[0m\x1b[K")
         return
     
     try:
@@ -277,7 +277,7 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
         tracks = playlist.GetPlaylistAllTracks(playlist_id)
         if not os.path.exists(download_path):
             os.makedirs(download_path)
-        playlist_info_filename = os.path.join(download_path, f'playlist_{playlist_id}_info.txt')
+        playlist_info_filename = os.path.join(download_path, f'!#_playlist_{playlist_id}_info.txt')
         with open(playlist_info_filename, 'w', encoding='utf-8') as f:
             for track_info in tracks['songs']:
                 track_id = track_info['id']
@@ -294,7 +294,7 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
         print("==========================================================================\x1b[K")
         print(f"\033[32m✓ 操作已完成，歌曲已下载并保存到 \033[34m{download_path}\033[32m 文件夹中。\033[0m\x1b[K")
     except Exception as e:
-        print(f"\033[31m× 获取歌单列表或下载歌曲时出错: {e}\033[0m")
+        print(f"\033[31m× 获取歌单列表或下载歌曲时出错: {e}\033[0m\x1b[K")
 
 def get_track_info(track_id, level, download_path):
     try:
@@ -306,7 +306,7 @@ def get_track_info(track_id, level, download_path):
         download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, 1, 1)
         print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 {download_path} 文件夹中。\x1b[K")
     except Exception as e:
-        print(f"\033[31m! 获取歌曲信息时出错: {e}\033[0m")
+        print(f"\033[31m! 获取歌曲信息时出错: {e}\033[0m\x1b[K")
 
 def download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info=None, index=None, total=None):
     def make_safe_filename(filename):
@@ -318,7 +318,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
         if url:
             response = requests.get(url, stream=True)
             if response.status_code != 200:
-                print(f"\033[31m×获取 URL 时出错: {response.status_code} - {response.text}\033[0m")
+                print(f"\033[31m×获取 URL 时出错: {response.status_code} - {response.text}\033[0m\x1b[K")
                 write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}", download_path)
                 return
 
@@ -336,7 +336,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             progress_status = ""
             if index is not None and total is not None:
                 progress_status = f"[{index}/{total}] "
-            print("==========================================================================\x1b[K" + f"\n\033[34m  {progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
+            print("==========================================================================\x1b[K" + f"\n\033[94m{progress_status} 正在下载: {safe_filename}\033[0m\x1b[K")
             
             downloaded = 0
             progress_bar_length = 35
@@ -358,7 +358,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                             if elapsed_time > 0:
                                 speed = downloaded / elapsed_time / 1024  # KB/s
                             
-                            sys.stdout.write(f"\r|{bar}| {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s")
+                            sys.stdout.write(f"\r|{bar}| {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s\x1b[K")
                             sys.stdout.flush()
             
             sys.stdout.write("\r\033[2A\033[K")  
@@ -386,19 +386,19 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                 
         else:
             sys.stdout.write("\r\033[1A\033[K")  
-            write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接", download_path)
-            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt\033[0m\x1b[K")
+            write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接（可能歌曲已下架）", download_path)
+            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看 !#_FAILED_LIST.txt\033[0m\x1b[K")
     except (KeyError, IndexError) as e:
         sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}", download_path)
         print(f"\033[31m! 访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}\033[0m\x1b[K")
     except Exception as e:
         sys.stdout.write("\r\033[1A\033[K")  
-        write_to_failed_list(track_id, track_name, artist_name, f"下载错误: {e}", download_path)
+        write_to_failed_list(track_id, track_name, artist_name, f"未知下载错误: {e}", download_path)
         print(f"\033[31m! 下载歌曲时出错: {e}\033[0m\x1b[K")
 
 def write_to_failed_list(track_id, track_name, artist_name, reason, download_path):
-    failed_list_path = os.path.join(download_path, "failed_list.txt")
+    failed_list_path = os.path.join(download_path, "!#_FAILED_LIST.txt")
     if not os.path.exists(failed_list_path):
         with open(failed_list_path, 'w', encoding='utf-8') as f:
             f.write("此处列举了下载失败的歌曲\n可能的原因：\n1.歌曲为单曲付费曲目 \n2.歌曲已下架 \n3.地区限制（如VPN） \n4.网络问题 \n5.VIP曲目但账号无VIP权限\n=== === === === === === === === === === === ===\n\n")
@@ -453,17 +453,17 @@ if __name__ == "__main__":
     download_path = normalize_path(download_path_input) if download_path_input else default_path
     print(f"\033[0m  下载路径: \033[94m{download_path}\033[0m")
     
-    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md\033[0m")
+    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/stevezmtstudios/NCM-Playlist-Downloader\033[0m")
 
     playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[94m")
     if not playlist_id:
         track_id = input("\033[0m  请输入歌曲 ID \033[32m> \033[0m\033[94m")
-    lyrics_input = input("  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
+    lyrics_input = input("\033[0m  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
     lyrics_option = lyrics_input if lyrics_input in ['lrc', 'metadata', 'both', 'none'] else 'lrc'
     print(f"\033[0m  歌词处理方式: \033[94m{lyrics_option}")
     level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[94m")
     level = level_input if level_input in ['exhigh', 'lossless', 'hires', 'jymaster'] else 'lossless'
-    print(f"\033[0m  使用音质: \033[94m{level}\033[0m==========================================================================\n\033[94m  开始下载...\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
+    print(f"\033[0m  使用音质: \033[94m{level}\033[0m\n==========================================================================\n\033[94m  开始下载...\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
     if playlist_id:
         get_playlist_tracks_and_save_info(playlist_id, level, download_path)
     else:

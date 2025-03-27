@@ -140,8 +140,8 @@ if [ "$VENV_SUPPORTED" = true ]; then
             # 在虚拟环境中安装依赖
             echo "检查虚拟环境中的依赖..."
             if ! python -c "import pyncm" > /dev/null 2>&1; then
-                echo "安装 pyncm 到虚拟环境..."
-                pip install pyncm requests pillow qrcode colorama mutagen > /dev/null 2>&1 || {
+                echo "安装依赖..."
+                pip install -r requirements.txt 2>&1 || {
                     echo "警告: 无法安装部分依赖，脚本可能无法正常运行"
                 }
             fi
@@ -178,7 +178,7 @@ if [ "$VENV_SUPPORTED" = false ]; then
         
         echo "系统中缺少必要的Python包..."
         # 先尝试使用pip安装
-        if pip install --user pyncm requests pillow qrcode colorama mutagen > /dev/null 2>&1; then
+        if pip install --user -r requirements.txt > /dev/null 2>&1; then
             echo "已成功通过pip安装所需包"
         else
             echo "pip安装失败，尝试使用系统包管理器安装..."
