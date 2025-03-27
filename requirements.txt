@@ -1,0 +1,6 @@
+qrcode
+requests
+pillow
+pyncm
+colorama
+mutagen
