@@ -1,4 +1,4 @@
-import sys, os, json, qrcode, time, pyncm, requests, re, platform, subprocess
+import sys, os, json, qrcode, time, pyncm, requests, re, platform, subprocess, shutil
 from pyncm.apis import playlist, track, login
 
 try:
@@ -17,6 +17,32 @@ from mutagen.flac import FLAC, Picture
 from PIL import Image
 from io import BytesIO
 MUTAGEN_INSTALLED = True
+
+def get_terminal_size():
+    """获取终端窗口大小"""
+    try:
+        columns, lines = shutil.get_terminal_size()
+        return columns, lines
+    except (AttributeError, ImportError, OSError):
+        # 如果无法通过shutil获取，尝试其他方法
+        try:
+            # Unix/Linux/MacOS
+            if platform.system() != 'Windows':
+                import fcntl, termios, struct
+                fd = sys.stdin.fileno()
+                hw = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+                return hw[1], hw[0]
+            else:
+                # Windows
+                from ctypes import windll, create_string_buffer
+                h = windll.kernel32.GetStdHandle(-12)  # stderr
+                buf = create_string_buffer(22)
+                windll.kernel32.GetConsoleScreenBufferInfo(h, buf)
+                left, top, right, bottom = struct.unpack('hhhhHhhhhhh', buf.raw)[5:9]
+                return right - left + 1, bottom - top + 1
+        except:
+            # 默认值
+            return 80, 24
 
 def get_qrcode():
     uuid = login.LoginQrcodeUnikey()["unikey"]
@@ -336,11 +362,17 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             progress_status = ""
             if index is not None and total is not None:
                 progress_status = f"[{index}/{total}] "
-            print("==========================================================================\x1b[K" + f"\n\033[94m{progress_status} 正在下载: {safe_filename}\033[0m\x1b[K")
+            
+            if terminal_width >= 88:
+                print("==========================================================================\x1b[K" + f"\n\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
+            else:
+                # print(f"\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
+                pass
             
             downloaded = 0
-            progress_bar_length = 35
+            progress_bar_length = 35 if terminal_width >= 88 else min(20, terminal_width - 40)
             speed = 0  
+            show_progress_bar = terminal_width >= 88
             
             with open(safe_filepath, 'wb') as f:
                 start_time = time.time()
@@ -349,7 +381,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                         f.write(chunk)
                         downloaded += len(chunk)
                         
-                        if file_size > 0:
+                        if file_size > 0 and show_progress_bar:
                             percent = downloaded / file_size
                             bar_filled = int(progress_bar_length * percent)
                             bar = '\033[32m█' * bar_filled + '\033[0m░' * (progress_bar_length - bar_filled)
@@ -361,8 +393,11 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                             sys.stdout.write(f"\r|{bar}| {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s\x1b[K")
                             sys.stdout.flush()
             
-            sys.stdout.write("\r\033[2A\033[K")  
-            print(f"\033[32m✓ 已下载: \033[0m{safe_filename}\x1b[K")
+            if show_progress_bar:
+                sys.stdout.write("\r\033[2A\033[K")  
+                print(f"\033[32m✓ 已下载: \033[0m{safe_filename}\x1b[K")
+            else:
+                print(f"\033[32m✓ 已下载{progress_status}\033[0m{safe_filename}\x1b[K")
             
             if not track_info and url_info['data'][0].get('id'):
                 try:
@@ -385,15 +420,18 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                 print("\033[33m! 无法添加元数据: 缺少曲目信息\033[0m\x1b[K")
                 
         else:
-            sys.stdout.write("\r\033[1A\033[K")  
+            if terminal_width >= 88:
+                sys.stdout.write("\r\033[1A\033[K")  
             write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接（可能歌曲已下架）", download_path)
             print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看 !#_FAILED_LIST.txt\033[0m\x1b[K")
     except (KeyError, IndexError) as e:
-        sys.stdout.write("\r\033[1A\033[K")  
+        if terminal_width >= 88:
+            sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}", download_path)
         print(f"\033[31m! 访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}\033[0m\x1b[K")
     except Exception as e:
-        sys.stdout.write("\r\033[1A\033[K")  
+        if terminal_width >= 88:
+            sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"未知下载错误: {e}", download_path)
         print(f"\033[31m! 下载歌曲时出错: {e}\033[0m\x1b[K")
 
@@ -418,7 +456,12 @@ def load_session_from_file(filename='session.json'):
         return None
 
 if __name__ == "__main__":
-    print(r""" __  __  ____                 ____    ___                     ___               __      
+    # 获取终端宽度
+    terminal_width, _ = get_terminal_size()
+    
+    # 根据终端宽度决定是否显示ASCII艺术
+    if terminal_width >= 88:
+        print(r""" __  __  ____                 ____    ___                     ___               __      
 /\ \/\ \/\  _`\   /'\_/`\    /\  _`\ /\_ \                   /\_ \   __        /\ \__   
 \ \ `\\ \ \ \/\_\/\      \   \ \ \L\ \//\ \      __    __  __\//\ \ /\_\    ___\ \ ,_\  
  \ \ , ` \ \ \/_/\ \ \__\ \   \ \ ,__/ \ \ \   /'__`\ /\ \/\ \ \ \ \\/\ \  /',__\ \ \/  
@@ -435,6 +478,15 @@ if __name__ == "__main__":
    \ \____\ \____/\ \___x___/\ \_\ \_/\____\ \____\ \__/.\_\ \___,_\ \____\ \_\         
     \/___/ \/___/  \/__//__/  \/_/\/_\/____/\/___/ \/__/\/_/\/__,_ /\/____/\/_/         
                                                   Netease Cloud Music Playlist Downloader""")
+    else:
+        print("\n\nNetease Cloud Music Playlist Downloader")
+        print("\033[33m! 您的终端窗口宽度小于88个字符，部分特性已被停用。\033[0m")
+        print("\033[44;37m若要完整展示程序特性和下载进度，请调整窗口宽度或字体大小到可以完整显示这行后重新执行脚本\033[0m\n\n")
+        # print("="*88)
+        '''
+========================================================================================
+        '''
+        
      
     session = load_session_from_file()
     if session:

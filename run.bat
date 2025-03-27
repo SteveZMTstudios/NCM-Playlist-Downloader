@@ -1,6 +1,7 @@
 @echo off
 
 set DEPS_INSTALLED=false
+title 网易云音乐下载器
 
 if not exist venv (
     echo 创建虚拟环境...

@@ -1,7 +1,32 @@
 #!/bin/bash
 
+# 判断脚本是否在终端中运行
+if [ ! -t 0 ]; then
+    # 如果不是在终端中运行（比如双击），则使用终端模拟器重新运行此脚本
+    if command -v x-terminal-emulator &> /dev/null; then
+        # Debian/Ubuntu 系统
+        exec x-terminal-emulator -e "$0" "$@"
+    elif command -v gnome-terminal &> /dev/null; then
+        # GNOME 桌面环境
+        exec gnome-terminal -- "$0" "$@"
+    elif command -v konsole &> /dev/null; then
+        # KDE 桌面环境
+        exec konsole -e "$0" "$@"
+    elif command -v xfce4-terminal &> /dev/null; then
+        # XFCE 桌面环境
+        exec xfce4-terminal -e "$0" "$@"
+    elif command -v xterm &> /dev/null; then
+        # 几乎所有 X 系统都有 xterm
+        exec xterm -e "$0" "$@"
+    else
+        echo "找不到终端模拟器，请在终端中运行此脚本"
+        exit 1
+    fi
+fi
+
 set -e
 trap 'echo "发生错误，脚本终止"; exit 1' ERR
+echo -e "\033]0;网易云批量下载器\007"
 
 # 添加标志跟踪系统包是否已安装
 SYSTEM_PACKAGES_INSTALLED=false

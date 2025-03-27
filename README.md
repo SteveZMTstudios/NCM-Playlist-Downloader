@@ -47,7 +47,88 @@ chmod +x run.sh
 或者回车，输入歌曲id  
 3. 选择音质：极高`exhigh` 无损`lossless` 高清`hires` 超清`jymaster` 默认无损  
 
+## 说明
+
+### 音质说明
+- 极高`exhigh` (HQ)
+    mp3格式 CD音质 ~192kbps 最高320kbps
+    通常一首歌大小8MB左右
+
+- 无损`lossless` (SQ VIP)
+    flac格式 高保真无损音质，最高48KHz/16bit
+    通常一首歌大小25MB左右
+    需要 VIP 账号
+
+- 高清`hires` (Spatial Audio VIP)
+    flac格式 声音听感增强，最高96kHz/24bit
+    通常一首歌大小50MB左右
+    需要 VIP 账号
+
+- 超清`jymaster` (Master SVIP)
+    flac格式 音乐制作大师级音质，最高192kHz/24bit
+    通常一首歌大小150MB左右
+    需要 SVIP 账号
+    可能耗费下载用量
+
+### 音频标签（元数据）
+
+本程序会自动为下载的音频文件添加完整的元数据标签：
+- 歌曲标题
+- 艺术家信息
+- 专辑名称
+- 曲目编号
+- 发行年份
+- 专辑封面图片
+- 歌词（如选择嵌入）
+
+支持MP3(ID3标签)和FLAC格式的元数据嵌入，使音乐文件在各类播放器中显示完整信息。
+
+### 歌词
+
+程序提供多种歌词处理方式，在下载时可选择：
+- `lrc`：保存为独立LRC文件（与音频文件同名），UTF-8编码
+- `metadata`：将歌词嵌入到音频文件元数据中
+- `both`：同时保存独立文件和嵌入元数据
+- `none`：不下载歌词
+
+默认设置为保存独立LRC文件。
+
+#### 歌词翻译处理
+
+当歌词有翻译版本时，程序会处理翻译内容：
+1. 解析原文和翻译歌词的时间轴
+2. 将翻译行插入到对应原文行之后
+3. 优化翻译行时间戳，使播放时原文与翻译依次显示
+4. 导出为标准LRC格式，兼容大多数音乐播放器
+
+这种处理方式使得歌词在播放时，高亮原文，翻译位于原文下方，提供更好的阅读体验。
+
+### 文件说明
+
+- `session.json`：
+  保存登录会话信息的文件，使您下次使用时无需重新登录。
+  包含加密的用户凭证，仅保存在本地。
+
+- `ncm.png`：
+  登录时生成的二维码图片文件，用于网易云音乐APP扫码登录。
+  登录完成后可以删除。
+
+- `downloads/`：
+  默认的下载目录，所有音乐和歌词文件将保存在此。
+  可在运行程序时自定义下载路径。
+
+- `!#_playlist_{playlist_id}_info.txt`：
+  保存歌单信息的文本文件，包含歌单中所有歌曲的ID、名称和艺术家。
+  便于查找特定歌曲和记录歌单内容。
+
+- `!#_FAILED_LIST.txt`：
+  记录下载失败的歌曲列表，包含歌曲ID、名称、艺术家和失败原因。
+  常见失败原因包括：歌曲已下架、地区限制、单曲付费、VIP权限不足等。
 
 ## 鸣谢
-- [NCM Playlist Downloader (basic)](https://github.com/padoru233/NCM-Playlist-Downloader)
+- [NCM Playlist Downloader (base)](https://github.com/padoru233/NCM-Playlist-Downloader)
 - [pyncm](https://github.com/mos9527/pyncm)
+
+
+
+
