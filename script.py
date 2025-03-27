@@ -657,8 +657,8 @@ if __name__ == "__main__":
         lyrics_input = input("\033[0m  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
         lyrics_option = lyrics_input if lyrics_input in ['lrc', 'metadata', 'both', 'none'] else 'lrc'
         print(f"\033[0m  歌词处理方式: \033[94m{lyrics_option}")
-        level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[94m")
-        level = level_input if level_input in ['exhigh', 'lossless', 'hires', 'jymaster'] else 'lossless'
+        level_input = input("\033[0m  请选择音质：standard(标准) / exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 exhigh \033[32m> \033[0m\033[94m")
+        level = level_input if level_input in ['standard', 'exhigh', 'lossless', 'hires', 'jymaster'] else 'exhigh'
         print(f"\033[0m  使用音质: \033[94m{level}\033[0m\n==========================================================================\n\033[94m  开始下载...\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
         if playlist_id:
             get_playlist_tracks_and_save_info(playlist_id, level, download_path)
