@@ -16,7 +16,7 @@
 
 确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令
 ```
-git clone https://github.com/SteveZMTstudios/NCM-Playlist-Downloader.git
+git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 pip install -r requirements.txt
 python script.py
@@ -25,7 +25,7 @@ python script.py
 ### Windows 
 
 ```
-git clone https://github.com/SteveZMTstudios/NCM-Playlist-Downloader.git
+git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 .\run.bat
 ```
@@ -33,7 +33,7 @@ cd NCM-Playlist-Downloader
 ### Linux / Android Termux
 
 ```bash
-git clone https://github.com/SteveZMTstudios/NCM-Playlist-Downloader.git
+git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 chmod +x run.sh
 ./run.sh
@@ -126,7 +126,6 @@ chmod +x run.sh
   常见失败原因包括：歌曲已下架、地区限制、单曲付费、VIP权限不足等。
 
 ## 鸣谢
-- [NCM Playlist Downloader (base)](https://github.com/padoru233/NCM-Playlist-Downloader)
 - [pyncm](https://github.com/mos9527/pyncm)
 
 

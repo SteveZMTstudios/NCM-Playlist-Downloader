@@ -505,7 +505,7 @@ if __name__ == "__main__":
     download_path = normalize_path(download_path_input) if download_path_input else default_path
     print(f"\033[0m  下载路径: \033[94m{download_path}\033[0m")
     
-    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/stevezmtstudios/NCM-Playlist-Downloader\033[0m")
+    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader\033[0m")
 
     playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[94m")
     if not playlist_id:
@@ -520,4 +520,4 @@ if __name__ == "__main__":
         get_playlist_tracks_and_save_info(playlist_id, level, download_path)
     else:
         get_track_info(track_id, level, download_path)
-
+ 
