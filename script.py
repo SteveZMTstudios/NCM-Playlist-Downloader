@@ -344,7 +344,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
         if url:
             response = requests.get(url, stream=True)
             if response.status_code != 200:
-                print(f"\033[31m×获取 URL 时出错: {response.status_code} - {response.text}\033[0m\x1b[K")
+                print(f"\033[31m× 获取 URL 时出错: {response.status_code} - {response.text}\033[0m\x1b[K")
                 write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}", download_path)
                 return
 
@@ -456,12 +456,13 @@ def load_session_from_file(filename='session.json'):
         return None
 
 if __name__ == "__main__":
-    # 获取终端宽度
-    terminal_width, _ = get_terminal_size()
-    
-    # 根据终端宽度决定是否显示ASCII艺术
-    if terminal_width >= 88:
-        print(r""" __  __  ____                 ____    ___                     ___               __      
+    try:
+        # 获取终端宽度
+        terminal_width, _ = get_terminal_size()
+        
+        # 根据终端宽度决定是否显示ASCII艺术
+        if terminal_width >= 88:
+            print(r""" __  __  ____                 ____    ___                     ___               __      
 /\ \/\ \/\  _`\   /'\_/`\    /\  _`\ /\_ \                   /\_ \   __        /\ \__   
 \ \ `\\ \ \ \/\_\/\      \   \ \ \L\ \//\ \      __    __  __\//\ \ /\_\    ___\ \ ,_\  
  \ \ , ` \ \ \/_/\ \ \__\ \   \ \ ,__/ \ \ \   /'__`\ /\ \/\ \ \ \ \\/\ \  /',__\ \ \/  
@@ -478,46 +479,50 @@ if __name__ == "__main__":
    \ \____\ \____/\ \___x___/\ \_\ \_/\____\ \____\ \__/.\_\ \___,_\ \____\ \_\         
     \/___/ \/___/  \/__//__/  \/_/\/_\/____/\/___/ \/__/\/_/\/__,_ /\/____/\/_/         
                                                   Netease Cloud Music Playlist Downloader""")
-    else:
-        print("\n\nNetease Cloud Music Playlist Downloader")
-        print("\033[33m! 您的终端窗口宽度小于88个字符，部分特性已被停用。\033[0m")
-        print("\033[44;37m若要完整展示程序特性和下载进度，请调整窗口宽度或字体大小到可以完整显示这行后重新执行脚本\033[0m\n\n")
-        # print("="*88)
-        '''
-========================================================================================
-        '''
+        else:
+            print("\n\nNetease Cloud Music Playlist Downloader")
+            print("\033[33m! 您的终端窗口宽度小于88个字符，部分特性已被停用。\033[0m")
+            print("\033[44;37m若要完整展示程序特性和下载进度，请调整窗口宽度或字体大小到可以完整显示这行后重新执行脚本\033[0m\n\n")
+            # print("="*88)
+            '''
+    ========================================================================================
+            '''
+            
         
-     
-    session = load_session_from_file()
-    if session:
-        print("  使用保存的会话登录。")
-    else:
-        try:
-            session = get_qrcode()
-            if session:
-                save_session_to_file(session)
-        except Exception as e:
-            print(e)
-            sys.exit(1)
+        session = load_session_from_file()
+        if session:
+            print("  使用保存的会话登录。")
+        else:
+            try:
+                session = get_qrcode()
+                if session:
+                    save_session_to_file(session)
+            except Exception as e:
+                print(e)
+                sys.exit(1)
 
-    default_path = os.path.join(os.getcwd(), "downloads")
-    download_path_input = input(f"  请输入下载路径或拖拽文件夹至此 (默认: {default_path}) \033[32m> \033[0m\033[94m")
-    download_path = normalize_path(download_path_input) if download_path_input else default_path
-    print(f"\033[0m  下载路径: \033[94m{download_path}\033[0m")
-    
-    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader\033[0m")
+        default_path = os.path.join(os.getcwd(), "downloads")
+        download_path_input = input(f"  请输入下载路径或拖拽文件夹至此 (默认: {default_path}) \033[32m> \033[0m\033[94m")
+        download_path = normalize_path(download_path_input) if download_path_input else default_path
+        print(f"\033[0m  下载路径: \033[94m{download_path}\033[0m")
+        
+        print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader\033[0m")
 
-    playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[94m")
-    if not playlist_id:
-        track_id = input("\033[0m  请输入歌曲 ID \033[32m> \033[0m\033[94m")
-    lyrics_input = input("\033[0m  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
-    lyrics_option = lyrics_input if lyrics_input in ['lrc', 'metadata', 'both', 'none'] else 'lrc'
-    print(f"\033[0m  歌词处理方式: \033[94m{lyrics_option}")
-    level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[94m")
-    level = level_input if level_input in ['exhigh', 'lossless', 'hires', 'jymaster'] else 'lossless'
-    print(f"\033[0m  使用音质: \033[94m{level}\033[0m\n==========================================================================\n\033[94m  开始下载...\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
-    if playlist_id:
-        get_playlist_tracks_and_save_info(playlist_id, level, download_path)
-    else:
-        get_track_info(track_id, level, download_path)
- 
+        playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[94m")
+        if not playlist_id:
+            track_id = input("\033[0m  请输入歌曲 ID \033[32m> \033[0m\033[94m")
+        lyrics_input = input("\033[0m  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
+        lyrics_option = lyrics_input if lyrics_input in ['lrc', 'metadata', 'both', 'none'] else 'lrc'
+        print(f"\033[0m  歌词处理方式: \033[94m{lyrics_option}")
+        level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[94m")
+        level = level_input if level_input in ['exhigh', 'lossless', 'hires', 'jymaster'] else 'lossless'
+        print(f"\033[0m  使用音质: \033[94m{level}\033[0m\n==========================================================================\n\033[94m  开始下载...\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
+        if playlist_id:
+            get_playlist_tracks_and_save_info(playlist_id, level, download_path)
+        else:
+            get_track_info(track_id, level, download_path)
+    except KeyboardInterrupt:
+        print("\n\n\033[33m× 操作已被用户取消（按下了Ctrl + C组合键）。\033[0m")
+    except Exception as e: 
+        print(f"\033[31m× 出现错误: {e}\033[0m")
+
