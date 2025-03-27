@@ -302,13 +302,14 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
                 artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
                 f.write(f"{track_id} - {track_name} - {artist_name}\n")
         print(f"\033[32m✓ \033[0m歌单信息已保存到 {playlist_info_filename}")
-        for track_info in tracks['songs']:
+        total_tracks = len(tracks['songs'])
+        for index, track_info in enumerate(tracks['songs'], start=1):
             track_id = track_info['id']
             track_name = track_info['name']
             artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
-            download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info)
+            download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, index, total_tracks)
         print("====================================================")
-        print(f"\033[32m✓ 操作已完成，歌曲已下载并保存到 \033[34m{download_path}\033[32m 文件夹中。\033[0m")
+        print(f"\033[32m✓ 操作已完成，歌曲已下载并保存到 \033[94m{download_path}\033[32m 文件夹中。\033[0m")
     except Exception as e:
         print(f"\033[31m× 获取歌单列表或下载歌曲时出错: {e}\033[0m")
 
@@ -319,12 +320,12 @@ def get_track_info(track_id, level, download_path):
         track_id = track_info['id']
         track_name = track_info['name']
         artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
-        download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info)
+        download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, 1, 1)
         print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 {download_path} 文件夹中。")
     except Exception as e:
         print(f"\033[31m! 获取歌曲信息时出错: {e}\033[0m")
 
-def download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info=None):
+def download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info=None, index=None, total=None):
     def make_safe_filename(filename):
         return re.sub(r'[\\/*?:"<>|]', "-", filename)
 
@@ -349,7 +350,10 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             safe_filepath = os.path.join(download_path, safe_filename)
             
             file_size = int(response.headers.get('content-length', 0))
-            print("===============================================================" + " " * 25 + f"\n\033[34m- 正在下载: {safe_filename}\033[0m" + " " * 31)
+            progress_info = ""
+            if index is not None and total is not None:
+                progress_info = f"[{index}/{total}] "
+            print("===============================================================" + " " * 25 + f"\n\033[94m- {progress_info}正在下载: {safe_filename}\033[0m" + " " * 31)
             
             downloaded = 0
             progress_bar_length = 30
@@ -461,21 +465,21 @@ if __name__ == "__main__":
             sys.exit(1)
 
     default_path = os.path.join(os.getcwd(), "downloads")
-    download_path_input = input(f"  请输入下载路径或拖拽文件夹至此 (默认: {default_path}) \033[32m> \033[0m\033[34m")
+    download_path_input = input(f"  请输入下载路径或拖拽文件夹至此 (默认: {default_path}) \033[32m> \033[0m\033[94m")
     download_path = normalize_path(download_path_input) if download_path_input else default_path
-    print(f"\033[0m  下载路径: \033[34m{download_path}\033[0m")
-    lyrics_input = input("  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[34m")
+    print(f"\033[0m  下载路径: \033[94m{download_path}\033[0m")
+    lyrics_input = input("  请选择歌词处理方式: lrc(保存为lrc文件) / metadata(嵌入元数据) / both(两者都要) / none(不要歌词)，默认是 lrc \033[32m> \033[0m\033[94m")
     lyrics_option = lyrics_input if lyrics_input in ['lrc', 'metadata', 'both', 'none'] else 'lrc'
-    print(f"\033[0m  歌词处理方式: \033[34m{lyrics_option}")
+    print(f"\033[0m  歌词处理方式: \033[94m{lyrics_option}")
 
-    print("\033[34mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md\033[0m")
+    print("\033[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md\033[0m")
 
-    playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[34m")
+    playlist_id = input("  请输入歌单 ID (直接回车则输入单曲 ID) \033[32m> \033[0m\033[94m")
     if not playlist_id:
-        track_id = input("\033[0m  请输入歌曲 ID \033[32m> \033[0m\033[34m")
-    level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[34m")
+        track_id = input("\033[0m  请输入歌曲 ID \033[32m> \033[0m\033[94m")
+    level_input = input("\033[0m  请选择音质：exhigh(极高) / lossless(无损) / hires(高清) / jymaster(超清)，默认是 lossless \033[32m> \033[0m\033[94m")
     level = level_input if level_input in ['exhigh', 'lossless', 'hires', 'jymaster'] else 'lossless'
-    print(f"\033[0m  使用音质: \033[34m{level}\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
+    print(f"\033[0m  使用音质: \033[94m{level}\n\033[32m✓ 正在使用听歌API，不消耗VIP下载额度\033[0m")
     if playlist_id:
         get_playlist_tracks_and_save_info(playlist_id, level, download_path)
     else:
