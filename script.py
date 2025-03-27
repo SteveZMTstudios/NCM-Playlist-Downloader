@@ -1,5 +1,8 @@
 import sys, os, json, qrcode, time, pyncm, requests, re, platform, subprocess, shutil
 from pyncm.apis import playlist, track, login
+import functools
+import threading
+from requests.exceptions import Timeout, ConnectionError, RequestException
 
 try:
     from colorama import init, Fore, Back, Style
@@ -19,12 +22,11 @@ from io import BytesIO
 MUTAGEN_INSTALLED = True
 
 def get_terminal_size():
-    """获取终端窗口大小"""
     try:
         columns, lines = shutil.get_terminal_size()
         return columns, lines
     except (AttributeError, ImportError, OSError):
-        # 如果无法通过shutil获取，尝试其他方法
+        # 尝试其他方法
         try:
             # Unix/Linux/MacOS
             if platform.system() != 'Windows':
@@ -44,29 +46,67 @@ def get_terminal_size():
             # 默认值
             return 80, 24
 
+def retry_with_timeout(timeout=30, retry_times=2, operation_name="操作"):
+    """通用超时重试装饰器"""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            last_error = None
+            while retries <= retry_times:
+                try:
+                    result = func(*args, **kwargs)
+                    return result, None
+                except (Timeout, ConnectionError, RequestException) as e:
+                    retries += 1
+                    last_error = e
+                    if retries <= retry_times:
+                        print(f"\033[33m! {operation_name}超时，正在重试 ({retries}/{retry_times})...\033[0m\x1b[K")
+                    else:
+                        print(f"\033[31m× {operation_name}多次超时，放弃尝试。\033[0m\x1b[K")
+                        break
+            return None, last_error
+        return wrapper
+    return decorator
+
 def get_qrcode():
-    uuid = login.LoginQrcodeUnikey()["unikey"]
-    url = f"https://music.163.com/login?codekey={uuid}"
-    img = qrcode.make(url)
-    img.save('ncm.png')
-    print("\033[32m✓ \033[0m二维码已保存为'ncm.png'，请使用网易云音乐APP扫码登录。")
-    
     try:
-        open_image('ncm.png')
+        uuid = login.LoginQrcodeUnikey()["unikey"]
+        url = f"https://music.163.com/login?codekey={uuid}"
+        img = qrcode.make(url)
+        img.save('ncm.png')
+        print("\033[32m✓ \033[0m二维码已保存为'ncm.png'，请使用网易云音乐APP扫码登录。")
+        
+        try:
+            open_image('ncm.png')
+        except Exception as e:
+            print(f"{e}，请手动打开ncm.png文件")
+        
+        retry_count = 0
+        max_retries = 2
+        while True:
+            try:
+                rsp = login.LoginQrcodeCheck(uuid)
+                if rsp["code"] == 803:
+                    session = pyncm.GetCurrentSession()
+                    login.WriteLoginInfo(login.GetCurrentLoginStatus(), session)
+                    print("\033[32m✓ \033[0m登录成功")
+                    return session
+                elif rsp["code"] == 800:
+                    print("  二维码已过期，请重新尝试。")
+                    break
+                time.sleep(1)
+            except (Timeout, ConnectionError, RequestException) as e:
+                retry_count += 1
+                if retry_count <= max_retries:
+                    print(f"\033[33m! 二维码检查超时，正在重试 ({retry_count}/{max_retries})...\033[0m\x1b[K")
+                    time.sleep(1)
+                else:
+                    print(f"\033[31m× 二维码检查多次超时，放弃尝试。\033[0m\x1b[K")
+                    raise
     except Exception as e:
-        print(f"{e}，请手动打开ncm.png文件")
-    
-    while True:
-        rsp = login.LoginQrcodeCheck(uuid)
-        if rsp["code"] == 803:
-            session = pyncm.GetCurrentSession()
-            login.WriteLoginInfo(login.GetCurrentLoginStatus(), session)
-            print("\033[32m✓ \033[0m登录成功")
-            return session
-        elif rsp["code"] == 800:
-            print("  二维码已过期，请重新尝试。")
-            break
-        time.sleep(1)
+        print(f"\033[31m× 二维码生成或验证出错: {e}\033[0m\x1b[K")
+        raise
 
 def open_image(image_path):
     system = platform.system()
@@ -75,7 +115,7 @@ def open_image(image_path):
         os.startfile(image_path)
     elif system == 'Darwin':  # macOS
         subprocess.call(['open', image_path])
-    else:  # Linux和其他系统
+    else:  # Linux etc
         viewers = ['xdg-open', 'display', 'eog', 'ristretto', 'feh', 'gpicview']
         for viewer in viewers:
             try:
@@ -95,7 +135,7 @@ def parse_lrc(lrc_content):
     if not lrc_content:
         return []
     
-    # 匹配时间戳和歌词内容
+    # 匹配时间戳和歌词
     pattern = r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)'
     lyrics = []
     
@@ -103,7 +143,7 @@ def parse_lrc(lrc_content):
         match = re.match(pattern, line)
         if match:
             minutes, seconds, milliseconds, text = match.groups()
-            # 将时间转换为秒
+            # 转换为秒
             time_seconds = int(minutes) * 60 + int(seconds) + int(milliseconds.ljust(3, '0')) / 1000
             lyrics.append((time_seconds, text))
     
@@ -145,18 +185,32 @@ def save_lyrics_as_lrc(lyrics, file_path):
             f.write(format_lrc_line(time, text) + '\n')
     return file_path
 
+@retry_with_timeout(timeout=30, retry_times=2, operation_name="获取歌词")
+def get_track_lyrics(track_id):
+    return track.GetTrackLyrics(track_id)
+
+@retry_with_timeout(timeout=30, retry_times=2, operation_name="获取曲目详情")
+def get_track_detail(track_ids):
+    return track.GetTrackDetail(track_ids)
+
+@retry_with_timeout(timeout=30, retry_times=2, operation_name="获取歌曲下载链接")
+def get_track_audio(song_ids, level, encode_type):
+    return track.GetTrackAudioV1(song_ids=song_ids, level=level, encodeType=encode_type)
+
+@retry_with_timeout(timeout=30, retry_times=2, operation_name="获取播放列表")
+def get_playlist_all_tracks(playlist_id):
+    return playlist.GetPlaylistAllTracks(playlist_id)
+
 def process_lyrics(track_id, track_name, artist_name, output_option, download_path, audio_file_path=None):
     try:
-        # 获取歌词信息
-        lyric_data = track.GetTrackLyrics(track_id)
-        
-        if lyric_data['code'] != 200 or 'lrc' not in lyric_data:
+        lyric_data, error = get_track_lyrics(track_id)
+        if error or not lyric_data or lyric_data.get('code') != 200 or 'lrc' not in lyric_data:
             print(f"\033[33m! 无法获取歌词: {track_name}\033[0m\x1b[K")
             return False, None
         
-        track_detail = track.GetTrackDetail([track_id])
+        track_detail, error = get_track_detail([track_id])
         song_duration = None
-        if track_detail and 'songs' in track_detail and track_detail['songs']:
+        if not error and track_detail and 'songs' in track_detail and track_detail['songs']:
             song_duration = track_detail['songs'][0].get('dt', 0) / 1000
         original_lyrics = parse_lrc(lyric_data['lrc']['lyric'])
         translated_lyrics = []
@@ -186,6 +240,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
         
     except Exception as e:
         print(f"\033[33m! 处理歌词时出错: {e}\033[0m\x1b[K")
+        write_to_failed_list(track_id, track_name, artist_name, f"处理歌词失败: {e}", download_path)
         return False, None
 
 def add_metadata_to_audio(file_path, track_info, lyrics_content=None):
@@ -284,6 +339,15 @@ def add_metadata_to_audio(file_path, track_info, lyrics_content=None):
         print(f"\033[33m! 添加元数据时出错: {e}\033[0m\x1b[K")
 
 def normalize_path(path):
+    if path:
+        # 除开头和结尾的空格
+        path = path.strip()
+        # 除引号
+        if (path.startswith("'") and path.endswith("'")) or (path.startswith('"') and path.endswith('"')):
+            path = path[1:-1]
+        # 除尾部空格
+        path = path.rstrip()
+    
     expanded_path = os.path.expanduser(path)
     normalized_path = os.path.normpath(expanded_path)
     if not os.path.exists(normalized_path):
@@ -300,7 +364,16 @@ def normalize_path(path):
 
 def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
     try:
-        tracks = playlist.GetPlaylistAllTracks(playlist_id)
+        # 使用带超时的函数获取播放列表
+        tracks, error = get_playlist_all_tracks(playlist_id)
+        if error:
+            print(f"\033[31m× 获取歌单列表时出错: {error}\033[0m\x1b[K")
+            return
+            
+        if not tracks or 'songs' not in tracks:
+            print("\033[31m× 获取歌单列表返回无效数据\033[0m\x1b[K")
+            return
+            
         if not os.path.exists(download_path):
             os.makedirs(download_path)
         playlist_info_filename = os.path.join(download_path, f'!#_playlist_{playlist_id}_info.txt')
@@ -324,11 +397,20 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
 
 def get_track_info(track_id, level, download_path):
     try:
-        track_info_rsp = track.GetTrackDetail([track_id])
+        # 使用带超时的函数获取曲目详情
+        track_info_rsp, error = get_track_detail([track_id])
+        if error:
+            print(f"\033[31m× 获取歌曲信息时出错: {error}\033[0m\x1b[K")
+            return
+            
+        if not track_info_rsp or 'songs' not in track_info_rsp or not track_info_rsp['songs']:
+            print(f"\033[31m× 获取歌曲信息返回无效数据\033[0m\x1b[K")
+            return
+            
         track_info = track_info_rsp['songs'][0]
         track_id = track_info['id']
         track_name = track_info['name']
-        artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
+        artist_name = ', '.join(artist['name'] for artist in track_info.get('ar', []))
         download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, 1, 1)
         print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 {download_path} 文件夹中。\x1b[K")
     except Exception as e:
@@ -339,59 +421,118 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
         return re.sub(r'[\\/*?:"<>|]', "-", filename)
 
     try:
-        url_info = track.GetTrackAudioV1(song_ids=[track_id], level=level, encodeType="flac")
-        url = url_info['data'][0]['url']
+        # 使用带超时的API调用获取音频URL
+        url_info, error = get_track_audio([track_id], level, "flac")
+        if error:
+            write_to_failed_list(track_id, track_name, artist_name, f"获取下载链接失败: {error}", download_path)
+            print(f"\033[31m! 获取曲目 {track_name} 的下载链接时出错: {error}\033[0m\x1b[K")
+            return
+            
+        if not url_info or 'data' not in url_info or not url_info['data']:
+            write_to_failed_list(track_id, track_name, artist_name, "获取下载链接返回无效数据", download_path)
+            print(f"\033[31m! 获取曲目 {track_name} 的下载链接返回无效数据\033[0m\x1b[K")
+            return
+            
+        url = url_info['data'][0].get('url')
         if url:
-            response = requests.get(url, stream=True)
-            if response.status_code != 200:
-                print(f"\033[31m× 获取 URL 时出错: {response.status_code} - {response.text}\033[0m\x1b[K")
-                write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}", download_path)
-                return
+            max_retries = 2
+            retry_count = 0
+            
+            while retry_count <= max_retries:
+                try:
+                    # 使用带超时的请求初始化下载
+                    response = requests.get(url, stream=True, timeout=30)
+                    if response.status_code != 200:
+                        print(f"\033[31m× 获取 URL 时出错: {response.status_code} - {response.text}\033[0m\x1b[K")
+                        write_to_failed_list(track_id, track_name, artist_name, f"HTTP错误: {response.status_code}", download_path)
+                        return
 
-            content_disposition = response.headers.get('content-disposition')
-            if content_disposition:
-                filename = content_disposition.split('filename=')[-1].strip('"')
-            else:
-                filename = f"{track_id}.flac"
-            os.makedirs(download_path, exist_ok=True)
+                    content_disposition = response.headers.get('content-disposition')
+                    if content_disposition:
+                        filename = content_disposition.split('filename=')[-1].strip('"')
+                    else:
+                        filename = f"{track_id}.flac"
+                    os.makedirs(download_path, exist_ok=True)
 
-            safe_filename = make_safe_filename(f"{track_name} - {artist_name}{os.path.splitext(filename)[1]}")
-            safe_filepath = os.path.join(download_path, safe_filename)
-            
-            file_size = int(response.headers.get('content-length', 0))
-            progress_status = ""
-            if index is not None and total is not None:
-                progress_status = f"[{index}/{total}] "
-            
-            if terminal_width >= 88:
-                print("==========================================================================\x1b[K" + f"\n\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
-            else:
-                # print(f"\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
-                pass
-            
-            downloaded = 0
-            progress_bar_length = 35 if terminal_width >= 88 else min(20, terminal_width - 40)
-            speed = 0  
-            show_progress_bar = terminal_width >= 88
-            
-            with open(safe_filepath, 'wb') as f:
-                start_time = time.time()
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
+                    safe_filename = make_safe_filename(f"{track_name} - {artist_name}{os.path.splitext(filename)[1]}")
+                    safe_filepath = os.path.join(download_path, safe_filename)
+                    
+                    file_size = int(response.headers.get('content-length', 0))
+                    progress_status = ""
+                    if index is not None and total is not None:
+                        progress_status = f"[{index}/{total}] "
+                    
+                    if terminal_width >= 88:
+                        print("==========================================================================\x1b[K" + f"\n\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
+                    else:
+                        # print(f"\033[94m{progress_status}正在下载: {safe_filename}\033[0m\x1b[K")
+                        pass
+                    
+                    downloaded = 0
+                    progress_bar_length = 35 if terminal_width >= 88 else min(20, terminal_width - 40)
+                    speed = 0  
+                    show_progress_bar = terminal_width >= 88
+                    last_downloaded = 0
+                    last_update_time = time.time()
+                    download_stalled = False
+                    no_progress_timer = None
+                    
+                    def check_download_progress():
+                        nonlocal download_stalled, last_downloaded
+                        if downloaded == last_downloaded:
+                            download_stalled = True
                         
-                        if file_size > 0 and show_progress_bar:
-                            percent = downloaded / file_size
-                            bar_filled = int(progress_bar_length * percent)
-                            bar = '\033[32m█' * bar_filled + '\033[0m░' * (progress_bar_length - bar_filled)
-                            
-                            elapsed_time = time.time() - start_time
-                            if elapsed_time > 0:
-                                speed = downloaded / elapsed_time / 1024  # KB/s
-                            
-                            sys.stdout.write(f"\r|{bar}| {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s\x1b[K")
-                            sys.stdout.flush()
+                    with open(safe_filepath, 'wb') as f:
+                        start_time = time.time()
+                        for chunk in response.iter_content(chunk_size=1024):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                
+                                # 检查是否有下载进度
+                                current_time = time.time()
+                                if current_time - last_update_time >= 10:  # 每10秒检查一次进度
+                                    if downloaded == last_downloaded:
+                                        # 无进展，中断并重试
+                                        print(f"\033[33m! 下载 {safe_filename} 停滞，正在重试...\033[0m\x1b[K")
+                                        break
+                                    last_downloaded = downloaded
+                                    last_update_time = current_time
+                                
+                                if file_size > 0 and show_progress_bar:
+                                    percent = downloaded / file_size
+                                    bar_filled = int(progress_bar_length * percent)
+                                    bar = '\033[32m█' * bar_filled + '\033[0m░' * (progress_bar_length - bar_filled)
+                                    
+                                    elapsed_time = time.time() - start_time
+                                    if elapsed_time > 0:
+                                        speed = downloaded / elapsed_time / 1024  # KB/s
+                                    
+                                    sys.stdout.write(f"\r|{bar}| {percent*100:.1f}% {downloaded/1024/1024:.2f}MB/{file_size/1024/1024:.2f}MB {speed:.1f}KB/s\x1b[K")
+                                    sys.stdout.flush()
+                    
+                    # 检查下载是否完成
+                    if downloaded < file_size and file_size > 0:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            print(f"\033[33m! 下载不完整，正在重试 ({retry_count}/{max_retries})...\033[0m\x1b[K")
+                            continue
+                        else:
+                            write_to_failed_list(track_id, track_name, artist_name, "下载不完整", download_path)
+                            print(f"\033[31m× 多次尝试下载失败: {safe_filename}\033[0m\x1b[K")
+                            return
+                    
+                    # 下载成功，跳出重试循环
+                    break
+                
+                except (Timeout, ConnectionError, RequestException) as e:
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        print(f"\033[33m! 下载超时，正在重试 ({retry_count}/{max_retries})...\033[0m\x1b[K")
+                    else:
+                        write_to_failed_list(track_id, track_name, artist_name, f"下载失败: {e}", download_path)
+                        print(f"\033[31m× 多次尝试下载失败: {e}\033[0m\x1b[K")
+                        return
             
             if show_progress_bar:
                 sys.stdout.write("\r\033[2A\033[K")  
@@ -401,9 +542,11 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             
             if not track_info and url_info['data'][0].get('id'):
                 try:
-                    track_detail = track.GetTrackDetail([url_info['data'][0]['id']])
-                    if track_detail and 'songs' in track_detail and track_detail['songs']:
+                    track_detail, error = get_track_detail([url_info['data'][0]['id']])
+                    if not error and track_detail and 'songs' in track_detail and track_detail['songs']:
                         track_info = track_detail['songs'][0]
+                    elif error:
+                        print(f"\033[33m! 获取曲目详情失败: {error}\033[0m\x1b[K")
                 except Exception as e:
                     print(f"\033[33m! 获取曲目详情失败: {e}\033[0m\x1b[K")
             
