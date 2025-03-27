@@ -9,31 +9,14 @@ except ImportError:
     COLORAMA_INSTALLED = False
     if platform.system() == 'Windows':
         os.system('pip install colorama')
-
-# try:
+if platform.system() == 'Windows':
+        os.system('') # init cmd
 import mutagen
 from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB, TRCK, TDRC
 from mutagen.flac import FLAC, Picture
 from PIL import Image
 from io import BytesIO
 MUTAGEN_INSTALLED = True
-# except ImportError:
-#     MUTAGEN_INSTALLED = False
-#     print("\033[33m! 缺少mutagen库，将尝试安装...\033[0m")
-#     try:
-#         if platform.system() == 'Windows':
-#             os.system('pip install mutagen')
-#         else:
-#             subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'mutagen'])
-#         import mutagen
-#         from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB, TRCK, TDRC
-#         from mutagen.flac import FLAC, Picture
-#         from PIL import Image
-#         from io import BytesIO
-#         MUTAGEN_INSTALLED = True
-#         print("\033[32m✓ \033[0mmutagen安装成功")
-#     except Exception as e:
-#         print(f"\033[31m× 安装mutagen失败: {e}\033[0m")
 
 def get_qrcode():
     uuid = login.LoginQrcodeUnikey()["unikey"]
@@ -55,7 +38,7 @@ def get_qrcode():
             print("\033[32m✓ \033[0m登录成功")
             return session
         elif rsp["code"] == 800:
-            print("二维码已过期，请重新尝试。")
+            print("  二维码已过期，请重新尝试。")
             break
         time.sleep(1)
 
@@ -142,7 +125,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
         lyric_data = track.GetTrackLyrics(track_id)
         
         if lyric_data['code'] != 200 or 'lrc' not in lyric_data:
-            print(f"\033[33m! 无法获取歌词: {track_name}\033[0m")
+            print(f"\033[33m! 无法获取歌词: {track_name}\033[0m\x1b[K")
             return False, None
         
         track_detail = track.GetTrackDetail([track_id])
@@ -157,7 +140,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
         merged_lyrics = merge_lyrics(original_lyrics, translated_lyrics, song_duration)
         
         if not merged_lyrics:
-            print(f"\033[33m! 未找到有效歌词: {track_name}\033[0m")
+            print(f"\033[33m! 未找到有效歌词: {track_name}\033[0m\x1b[K")
             return False, None
         
         # 根据用户选择，输出歌词
@@ -166,7 +149,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
             safe_track_name = re.sub(r'[\\/*?:"<>|]', "-", track_name)
             lrc_path = os.path.join(download_path, f"{safe_track_name} - {safe_artist_name}.lrc")
             save_lyrics_as_lrc(merged_lyrics, lrc_path)
-            print(f"\033[32m✓ \033[0m歌词已保存到 {lrc_path}")
+            print(f"\033[32m✓ \033[0m歌词已保存到 {lrc_path}\x1b[K")
         
         if (output_option == 'metadata' or output_option == 'both') and audio_file_path:
             lrc_content = '\n'.join([format_lrc_line(time, text) for time, text in merged_lyrics])
@@ -176,7 +159,7 @@ def process_lyrics(track_id, track_name, artist_name, output_option, download_pa
         return True, None
         
     except Exception as e:
-        print(f"\033[33m! 处理歌词时出错: {e}\033[0m")
+        print(f"\033[33m! 处理歌词时出错: {e}\033[0m\x1b[K")
         return False, None
 
 def add_metadata_to_audio(file_path, track_info, lyrics_content=None):
@@ -264,15 +247,15 @@ def add_metadata_to_audio(file_path, track_info, lyrics_content=None):
                 
                 img = Image.open(BytesIO(album_pic_data))
                 image.width, image.height = img.size
-                image.depth = 24  # 通常为24位彩色
+                image.depth = 24  # 位彩色
                 
                 audio.add_picture(image)
             
             audio.save()
 
-        print(f"\033[32m✓ \033[0m已为 {os.path.basename(file_path)} 添加元数据" + " "*15 )
+        print(f"\033[32m✓ \033[0m已为 {os.path.basename(file_path)} 添加元数据\x1b[K")
     except Exception as e:
-        print(f"\033[33m! 添加元数据时出错: {e}\033[0m")
+        print(f"\033[33m! 添加元数据时出错: {e}\033[0m\x1b[K")
 
 def normalize_path(path):
     expanded_path = os.path.expanduser(path)
@@ -307,9 +290,9 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
             track_id = track_info['id']
             track_name = track_info['name']
             artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
-            download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, index, total_tracks)
-        print("====================================================")
-        print(f"\033[32m✓ 操作已完成，歌曲已下载并保存到 \033[94m{download_path}\033[32m 文件夹中。\033[0m")
+            download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info)
+        print("====================================================\x1b[K")
+        print(f"\033[32m✓ 操作已完成，歌曲已下载并保存到 \033[34m{download_path}\033[32m 文件夹中。\033[0m\x1b[K")
     except Exception as e:
         print(f"\033[31m× 获取歌单列表或下载歌曲时出错: {e}\033[0m")
 
@@ -320,8 +303,8 @@ def get_track_info(track_id, level, download_path):
         track_id = track_info['id']
         track_name = track_info['name']
         artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
-        download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, 1, 1)
-        print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 {download_path} 文件夹中。")
+        download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info)
+        print(f"\033[32m✓ \033[0m歌曲 {track_name} 已保存到 {download_path} 文件夹中。\x1b[K")
     except Exception as e:
         print(f"\033[31m! 获取歌曲信息时出错: {e}\033[0m")
 
@@ -350,13 +333,10 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             safe_filepath = os.path.join(download_path, safe_filename)
             
             file_size = int(response.headers.get('content-length', 0))
-            progress_info = ""
-            if index is not None and total is not None:
-                progress_info = f"[{index}/{total}] "
-            print("===============================================================" + " " * 25 + f"\n\033[94m- {progress_info}正在下载: {safe_filename}\033[0m" + " " * 31)
+            print("===============================================================\x1b[K" + f"\n\033[34m- 正在下载: {safe_filename}\033[0m\x1b[K")
             
             downloaded = 0
-            progress_bar_length = 30
+            progress_bar_length = 35
             speed = 0  
             
             with open(safe_filepath, 'wb') as f:
@@ -379,7 +359,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                             sys.stdout.flush()
             
             sys.stdout.write("\r\033[2A\033[K")  
-            print(f"\033[32m✓ 已下载: \033[0m{safe_filename}")
+            print(f"\033[32m✓ 已下载: \033[0m{safe_filename}\x1b[K")
             
             if not track_info and url_info['data'][0].get('id'):
                 try:
@@ -387,7 +367,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                     if track_detail and 'songs' in track_detail and track_detail['songs']:
                         track_info = track_detail['songs'][0]
                 except Exception as e:
-                    print(f"\033[33m! 获取曲目详情失败: {e}\033[0m")
+                    print(f"\033[33m! 获取曲目详情失败: {e}\033[0m\x1b[K")
             
             # 处理歌词
             lyrics_success, lyrics_content = process_lyrics(
@@ -399,20 +379,20 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
             if track_info:
                 add_metadata_to_audio(safe_filepath, track_info, lyrics_content if lyrics_success else None)
             else:
-                print("\033[33m! 无法添加元数据: 缺少曲目信息\033[0m")
+                print("\033[33m! 无法添加元数据: 缺少曲目信息\033[0m\x1b[K")
                 
         else:
             sys.stdout.write("\r\033[1A\033[K")  
             write_to_failed_list(track_id, track_name, artist_name, "无可用下载链接", download_path)
-            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt\033[0m")
+            print(f"\033[31m! 无法下载 {track_name} - {artist_name}, 详情请查看failed_list.txt\033[0m\x1b[K")
     except (KeyError, IndexError) as e:
         sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"URL信息错误: {e}", download_path)
-        print(f"\033[31m! 访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}\033[0m")
+        print(f"\033[31m! 访问曲目 {track_name} - {artist_name} 的URL信息时出错: {e}\033[0m\x1b[K")
     except Exception as e:
         sys.stdout.write("\r\033[1A\033[K")  
         write_to_failed_list(track_id, track_name, artist_name, f"下载错误: {e}", download_path)
-        print(f"\033[31m! 下载歌曲时出错: {e}\033[0m")
+        print(f"\033[31m! 下载歌曲时出错: {e}\033[0m\x1b[K")
 
 def write_to_failed_list(track_id, track_name, artist_name, reason, download_path):
     failed_list_path = os.path.join(download_path, "failed_list.txt")
@@ -452,6 +432,7 @@ if __name__ == "__main__":
    \ \____\ \____/\ \___x___/\ \_\ \_/\____\ \____\ \__/.\_\ \___,_\ \____\ \_\         
     \/___/ \/___/  \/__//__/  \/_/\/_\/____/\/___/ \/__/\/_/\/__,_ /\/____/\/_/         
                                                   Netease Cloud Music Playlist Downloader""")
+     
     session = load_session_from_file()
     if session:
         print("  使用保存的会话登录。")
