@@ -50,36 +50,79 @@ chmod +x run.sh
 ## 说明
 
 ### 音质说明
-- 极高`exhigh` (HQ)
-    mp3格式 CD音质 ~192kbps 最高320kbps
-    通常一首歌大小8MB左右
+
+- 标准`standard`
+    - mp3格式 普通音质 ~128kbps
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: MPEG Audio layer 1/2 (mpga)
+    ```
+    Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 128 kb/s
+      Metadata:
+        encoder         : Lavc58.13
+    ```
+    - 通常一首歌大小3-5MB左右
+
+- **极高`exhigh` (HQ)**
+    - mp3格式 近CD品质 最高320kbps
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: MPEG Audio layer 1/2 (mpga)
+    ```
+    Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 320 kb/s
+      Metadata:
+        encoder         : Lavc58.13
+    ```
+    - 通常一首歌大小8-10MB左右
 
 - 无损`lossless` (SQ VIP)
-    flac格式 高保真无损音质，最高48KHz/16bit
-    通常一首歌大小25MB左右
-    需要 VIP 账号
+    - flac格式 高保真无损音质 最高48KHz/16bit
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```
+      Stream #0:0: Audio: flac, 44100 Hz, stereo, s16
+    ```
+    - 通常一首歌大小25-30MB左右
+    - 需要 VIP 账号
 
-- 高清`hires` (Spatial Audio VIP)
-    flac格式 声音听感增强，最高96kHz/24bit
-    通常一首歌大小50MB左右
-    需要 VIP 账号
+- 高解析度无损`hires` (Spatial Audio VIP)
+    - flac格式 更饱满清晰的高解析度音质 最高192kHz/24bit
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```  
+    Stream #0:0: Audio: flac, 44100 Hz, stereo, s16
+    ```
+    - 通常一首歌大小50MB左右
+    - 需要 VIP 账号
 
-- 超清`jymaster` (Master SVIP)
-    flac格式 音乐制作大师级音质，最高192kHz/24bit
-    通常一首歌大小150MB左右
-    需要 SVIP 账号
-    可能耗费下载用量
+- 高清臻音`jymaster` (Master VIP)
+    - flac格式 声音听感增强 96kHz/24bit
+    - 声道: 立体声 stereo
+    - 采样率: 96000 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```
+      Stream #0:0: Audio: flac, 96000 Hz, stereo, s32 (24 bit)
+    ```
+    - 通常一首歌大小150MB左右
+    - 需要 VIP 账号
 
 ### 音频标签（元数据）
 
-本程序会自动为下载的音频文件添加完整的元数据标签：
-- 歌曲标题
-- 艺术家信息
-- 专辑名称
-- 曲目编号
-- 发行年份
+本程序会自动为下载的音频文件添加完整的元数据标签（受限于可用的API）：
+- 歌曲标题`TITLE`
+- 艺术家信息`ARTIST`
+- 专辑名称`ALBUM`
+- 曲目轨道编号`track`
+- 发行年份`DATE`
 - 专辑封面图片
-- 歌词（如选择嵌入）
+- 歌词（如果选择嵌入）`LYRICS`
 
 支持MP3(ID3标签)和FLAC格式的元数据嵌入，使音乐文件在各类播放器中显示完整信息。
 
@@ -101,6 +144,25 @@ chmod +x run.sh
 3. 优化翻译行时间戳，使播放时原文与翻译依次显示
 4. 导出为标准LRC格式，兼容大多数音乐播放器
 
+示例：
+```lyric
+[01:01.57]I’m covering my ears like a kid
+[01:04.81]我像孩子一样堵住耳朵
+[01:04.82]When your words mean nothing, I go la la la
+[01:09.17]当你的话语毫无意义时 我就高唱 啦啦啦
+[01:09.18]I’m turning off the volume when you speak
+...
+```
+显示效果：
+
+---
+I’m covering my ears like a kid <br>
+我像孩子一样堵住耳朵<br>
+**When your words mean nothing, I go la la la**<br>
+当你的话语毫无意义时 我就高唱 啦啦啦 *（译文不会被播放器聚焦）*<br> 
+I’m turning off the volume when you speak<br>
+
+---
 这种处理方式使得歌词在播放时，高亮原文，翻译位于原文下方，提供更好的阅读体验。
 
 ### 文件说明
