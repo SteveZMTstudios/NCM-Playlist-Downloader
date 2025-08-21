@@ -17,6 +17,7 @@
 确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令
 ```
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
+git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 pip install -r requirements.txt
 python script.py
@@ -34,6 +35,7 @@ cd NCM-Playlist-Downloader
 ### Linux / Android Termux
 
 ```bash
+git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 chmod +x run.sh
@@ -78,6 +80,32 @@ chmod +x run.sh
     ```
     - 通常一首歌大小8-10MB左右
 
+- 标准`standard`
+    - mp3格式 普通音质 ~128kbps
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: MPEG Audio layer 1/2 (mpga)
+    ```
+    Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 128 kb/s
+      Metadata:
+        encoder         : Lavc58.13
+    ```
+    - 通常一首歌大小3-5MB左右
+
+- **极高`exhigh` (HQ)**
+    - mp3格式 近CD品质 最高320kbps
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: MPEG Audio layer 1/2 (mpga)
+    ```
+    Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 320 kb/s
+      Metadata:
+        encoder         : Lavc58.13
+    ```
+    - 通常一首歌大小8-10MB左右
+
 - 无损`lossless` (SQ VIP)
     - flac格式 高保真无损音质 最高48KHz/16bit
     - 声道: 立体声 stereo
@@ -89,7 +117,28 @@ chmod +x run.sh
     ```
     - 通常一首歌大小25-30MB左右
     - 需要 VIP 账号
+    - flac格式 高保真无损音质 最高48KHz/16bit
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```
+      Stream #0:0: Audio: flac, 44100 Hz, stereo, s16
+    ```
+    - 通常一首歌大小25-30MB左右
+    - 需要 VIP 账号
 
+- 高解析度无损`hires` (Spatial Audio VIP)
+    - flac格式 更饱满清晰的高解析度音质 最高192kHz/24bit
+    - 声道: 立体声 stereo
+    - 采样率: 44100 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```  
+    Stream #0:0: Audio: flac, 44100 Hz, stereo, s16
+    ```
+    - 通常一首歌大小50MB左右
+    - 需要 VIP 账号
 - 高解析度无损`hires` (Spatial Audio VIP)
     - flac格式 更饱满清晰的高解析度音质 最高192kHz/24bit
     - 声道: 立体声 stereo
@@ -113,6 +162,17 @@ chmod +x run.sh
     ```
     - 通常一首歌大小150MB左右
     - 需要 VIP 账号
+- 高清臻音`jymaster` (Master VIP)
+    - flac格式 声音听感增强 96kHz/24bit
+    - 声道: 立体声 stereo
+    - 采样率: 96000 Hz
+    - 位每采样: 32
+    - 编解码器: FLAC (Free Lossless Audio Codec) (flac)
+    ```
+      Stream #0:0: Audio: flac, 96000 Hz, stereo, s32 (24 bit)
+    ```
+    - 通常一首歌大小150MB左右
+    - 需要 VIP 账号
 
 ### 音频标签（元数据）
 
@@ -122,7 +182,14 @@ chmod +x run.sh
 - 专辑名称`ALBUM`
 - 曲目轨道编号`track`
 - 发行年份`DATE`
+本程序会自动为下载的音频文件添加完整的元数据标签（受限于可用的API）：
+- 歌曲标题`TITLE`
+- 艺术家信息`ARTIST`
+- 专辑名称`ALBUM`
+- 曲目轨道编号`track`
+- 发行年份`DATE`
 - 专辑封面图片
+- 歌词（如果选择嵌入）`LYRICS`
 - 歌词（如果选择嵌入）`LYRICS`
 
 支持MP3(ID3标签)和FLAC格式的元数据嵌入，使音乐文件在各类播放器中显示完整信息。
