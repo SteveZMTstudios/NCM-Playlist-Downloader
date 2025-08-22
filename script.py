@@ -812,7 +812,7 @@ def get_playlist_tracks_and_save_info(playlist_id, level, download_path):
             track_name = track_info['name']
             artist_name = ', '.join(artist['name'] for artist in track_info['ar'])
             download_and_save_track(track_id, track_name, artist_name, level, download_path, track_info, index, total_tracks)
-        print("==========================================================================================\x1b[K")
+        print("="*terminal_width+"\x1b[K")
         print(f"\33[32m✓ 操作已完成，歌曲已下载并保存到 \33[36m{download_path}\33[32m 文件夹中。\33[0m\x1b[K")
     except Exception as e:
         print(f"\33[31m× 获取歌单列表或下载歌曲时出错: {e}\33[0m\x1b[K")
@@ -1249,7 +1249,7 @@ if __name__ == "__main__":
             for i, (val, zh) in enumerate(opts, 1):
                 flag = "\33[44m" if config['level'] == val else ""
                 print(f"\33[36m[{i}]\33[0m {flag}{zh} ({val})\33[0m ")
-            print("\33[36m[0]\33[0m 取消")
+            print("\n\33[36m[0]\33[0m 取消")
             sel = input("\33[36m> \33[0m").strip()
             mapping = {str(i): v for i, (v, _) in enumerate(opts, 1)}
             if sel in mapping:
@@ -1313,7 +1313,7 @@ if __name__ == "__main__":
                 else:
                     preview_cache['playlist'] = {'id': config.get('playlist_id'), 'name': None, 'count': None, 'error': str(e)}
 
-        def render_menu():
+        def render_menu(display_only=False):
             
             print("\33[1J\33[H\33[0&J",end="")  # 清屏
             # if os.name == 'nt': # Windows 系统
@@ -1327,7 +1327,7 @@ if __name__ == "__main__":
             user_info = display_user_info(silent=True)
             nickname = user_info.get('nickname') or '匿名用户'
             vip_status = '\33[33m黑胶VIP\33[32m' if user_info.get('vip') else '\33[0m\33[2m普通用户，下载可能受限\33[32m'
-            print(f"\n\33[32m欢迎，\33[33m{nickname}\33[32m！{vip_status}\33[0m")
+            print(f"\n\33[32m欢迎，\33[33m{nickname}\33[32m！{vip_status}\33[0m" if not display_only else f"\n\33[32m用户名：\33[33m{nickname}\33[32m，{vip_status}\33[0m")
             
             print("\33[31m获取用户信息时实际失败！您可能无法使用任何功能！\33[0m" if user_info.get('user_id') is None else "")
             terminal_width, _ = get_terminal_size()
@@ -1380,10 +1380,10 @@ if __name__ == "__main__":
                     print(color_text(f"请先按[2]，指定要下载的歌单ID！", '31;5'))
                     print("\n")
                     ready_to_go = False
-            print("\33[32m准备就绪，可以下载。\n\33[0m" if ready_to_go else "",end="")
+            print("\n" if display_only else "\33[32m准备就绪，可以下载。\n\33[0m" if ready_to_go else "\n",end="")
             print("\33[2m"+"="*terminal_width+"\33[0m")
-            print("下载选项")
-            print("\33[2m"+"-"*terminal_width+"\33[0m")
+            print("下载选项\n" if not display_only else "",end="")
+            print("\33[2m"+"-"*terminal_width+"\33[0m\n" if not display_only else "",end="")
             level_zh = {
                 'standard': '标准', 'exhigh': '极高', 'lossless': '无损', 'hires': '高解析度无损', 'jymaster': '高清臻音'
             }.get(config['level'], config['level'])
@@ -1396,8 +1396,9 @@ if __name__ == "__main__":
             }.get(config['lyrics_option'], config['lyrics_option'])
             print(f"\33[36m[4]\33[0m歌词: \33[33m{lyrics_zh}\33[0m")
             print("\33[2m"+"-"*terminal_width+"\33[0m")
-            print("\33[42;97;1;5m[9] ▶ 开始任务\33[0m\t[Ctrl + C] 退出程序" if ready_to_go else "\33[9m[9] ▶ 开始任务\33[0m\t[Ctrl + C] 退出程序")
-            print("\n\n键入执行操作的序号，按回车确认\33[36m > \33[0m", end="")
+            if not display_only:
+                print("\33[42;97;1;5m[9] ▶ 开始任务\33[0m\t[Ctrl + C] 退出程序" if ready_to_go else "\33[9m[9] ▶ 开始任务\33[0m\t[Ctrl + C] 退出程序")
+                print("\n\n键入执行操作的序号，按回车确认\33[36m > \33[0m", end="")
             return ready_to_go
 
         
@@ -1424,6 +1425,7 @@ if __name__ == "__main__":
                     print(color_text("× 当前配置无法下载，请检查错误信息，或报告给开发者。", '31'))
                     time.sleep(2)
                     continue
+                render_menu(display_only=True)
                 print(f"\33[0m\n"+"="*terminal_width+"\n\33[94m  开始下载...\n\33[32m✓ 正在使用听歌API，不消耗VIP下载额度\33[0m\33[?25l")
                 # 让全局下载流程拿到歌词选项
                 globals()['lyrics_option'] = config['lyrics_option']
