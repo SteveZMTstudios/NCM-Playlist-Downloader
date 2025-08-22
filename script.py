@@ -351,6 +351,139 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
     except Exception:
         pass
 
+    # 先尝试在 Android/Termux 环境中通过外部浏览器 + 剪贴板获取 cookie（适用于移动端）
+    try:
+        import shutil as _shutil, subprocess as _subprocess, json as _json
+        is_termux = False
+        # 判断是否可能为 Android/Termux：优先检测 termux 工具链
+        try:
+            if _shutil.which('termux-clipboard-get') or _shutil.which('termux-open-url') or os.path.exists('/data/data/com.termux'):
+                is_termux = True
+        except Exception:
+            is_termux = False
+
+        if is_termux:
+            login_url = "https://y.music.163.com/m/login"
+            print("\33[33m! 检测到 Termux/Android 环境，强制使用 Via 浏览器（mark.via / mark.via.gp）打开登录页\33[0m")
+
+            # 强制使用 Via 浏览器：尝试以包名启动，若无法通过包名启动则提示安装并返回（不再回退到其他浏览器）
+            via_candidates = ['mark.via', 'mark.via.gp']
+            installed_via = None
+            for cand in via_candidates:
+                try:
+                    p = _subprocess.run(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', login_url, '-p', cand], capture_output=True, text=True, check=False)
+                    if p.returncode == 0:
+                        installed_via = cand
+                        break
+                except Exception:
+                    continue
+
+            if not installed_via:
+                print('\033[31m× 未检测到可用的 Via 浏览器 (mark.via / mark.via.gp) 或无法通过包名启动。请先安装 Via 后重试。\033[0m')
+                print('  可通过 Play 商店或 F-Droid 安装：')
+                print('    Play 商店: https://play.google.com/store/apps/details?id=mark.via')
+                print('    F-Droid: https://f-droid.org/en/packages/mark.via/')
+                print('  或直接下载 APK 安装：')
+                print('    https://res.viayoo.com/v1/via-release-cn.apk')
+                try:
+                    if _shutil.which('termux-open-url'):
+                        _subprocess.Popen(['termux-open-url', 'https://res.viayoo.com/v1/via-release-cn.apk'])
+                    else:
+                        _subprocess.Popen(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'https://res.viayoo.com/v1/via-release-cn.apk'])
+                except Exception:
+                    pass
+                return None
+
+            # 已成功以 Via 打开链接（以包名启动）
+            try:
+                print(f"  将使用 Via ({installed_via}) 打开移动端登录页...")
+                _subprocess.Popen(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', login_url, '-p', installed_via])
+            except Exception:
+                # 若无法以 subprocess 打开也直接返回，要求用户确认 Via 安装
+                print('\033[31m× 无法启动 Via 浏览器， 请确认 Via 已安装并允许从 Termux 启动。\033[0m')
+                return None
+
+            print("  请在 Via 浏览器中完成扫码登录；登录成功后请使用右上角盾牌图标或复制 Cookie 到剪贴板，程序将自动读取（等待最多 %s 秒）...\n若程序卡死请检查是否安装Termux:API..." % timeout_seconds)
+
+            clipboard_get = _shutil.which('termux-clipboard-get')
+            start = time.time()
+            cookie_text = None
+
+            if clipboard_get:
+                # 优先轮询 termux-clipboard-get（不会打断用户），直到 timeout
+                while time.time() - start < timeout_seconds:
+                    try:
+                        p = _subprocess.run([clipboard_get], capture_output=True, text=True, check=False)
+                        content = (p.stdout or '').strip()
+                        if content and ('MUSIC_U' in content or 'csrf' in content or '__csrf' in content):
+                            cookie_text = content
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(1)
+
+                # 如果轮询结束仍未获取到内容，则提示用户手动粘贴一次
+                if not cookie_text:
+                    print("  未在剪贴板检测到有效 Cookie，请手动将从浏览器复制的 Cookie 粘贴到这里（包含 MUSIC_U）：")
+                    cookie_text = input("  粘贴 Cookie 字串并回车 > ").strip()
+            else:
+                # 未安装 termux-clipboard-get：只请求一次用户手动粘贴
+                print("  未检测到 termux-clipboard-get，请手动将从浏览器复制的 Cookie 粘贴到这里（包含 MUSIC_U）：")
+                cookie_text = input("  粘贴 Cookie 字串并回车 > ").strip()
+
+            if cookie_text:
+                # 解析类似 "k1=v1; k2=v2" 的 cookie 字符串
+                try:
+                    cookie_pairs = [p.strip() for p in cookie_text.split(';') if '=' in p]
+                    parsed = {}
+                    for pair in cookie_pairs:
+                        k, v = pair.split('=', 1)
+                        parsed[k.strip()] = v.strip()
+
+                    # 如果至少含有 MUSIC_U，则构建会话并注入
+                    if 'MUSIC_U' in parsed:
+                        s = pyncm.GetCurrentSession()
+                        ua = ""
+                        try:
+                            # 尝试读取 UA，如果提供为 JSON 格式可能包含 ua 字段
+                            j = _json.loads(cookie_text)
+                            ua = j.get('userAgent') or j.get('ua') or ''
+                        except Exception:
+                            ua = ''
+
+                        if not ua:
+                            ua = "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Mobile"
+
+                        s.headers.update({
+                            "User-Agent": ua,
+                            "Referer": "https://y.music.163.com/",
+                            "Origin": "https://y.music.163.com"
+                        })
+
+                        for name, value in parsed.items():
+                            if not name or value is None:
+                                continue
+                            s.cookies.set(name, value, domain='.music.163.com', path='/')
+
+                        # 补齐 csrf_token
+                        if ('__csrf' in parsed or 'csrf_token' in parsed) and not s.cookies.get('csrf_token'):
+                            token = parsed.get('__csrf') or parsed.get('csrf_token')
+                            if token:
+                                s.cookies.set('csrf_token', token, domain='.music.163.com', path='/')
+
+                        print("\33[32m✓ \33[0m已从剪贴板获取到 Cookie，登录成功（Termux）")
+                        return s
+                    else:
+                        print("\33[33m! 从剪贴板解析到的 Cookie 中未找到 MUSIC_U，继续回退到桌面/selenium 方案\33[0m")
+                except Exception as e:
+                    print(f"\33[33m! 解析剪贴板 Cookie 时出错: {e}\33[0m")
+
+            else:
+                print("\33[33m! 未能在剪贴板中读取到 Cookie，回退到桌面/selenium 方案\33[0m")
+    except Exception:
+        # 若任何与 Termux 相关的尝试失败，不阻止后续 selenium 流程
+        pass
+
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -442,6 +575,40 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
             ff_opts.set_preference("dom.webdriver.enabled", True)
             # 尽量降低 firefox 日志
             ff_opts.set_preference('log', '{"level": "fatal"}')
+            # 如果系统通过 snap 安装 firefox，/snap/bin/firefox 可能是一个包装脚本，
+            # geckodriver 需要指向真正的可执行文件。尝试自动检测真实二进制位置并设置。
+            try:
+                firefox_exec = shutil.which('firefox') or '/snap/bin/firefox'
+                # 如果 /usr/bin/firefox 是包装脚本（shell script），而 snap 下存在真实 ELF，可优先使用 snap 的二进制
+                try:
+                    if firefox_exec == '/usr/bin/firefox' and os.path.exists('/usr/bin/firefox'):
+                        # 简单判断是否为脚本（而非 ELF 可执行）
+                        with open('/usr/bin/firefox', 'rb') as fh:
+                            head = fh.read(4)
+                        is_script = head.startswith(b'#!') or b'shell' in head.lower()
+                    else:
+                        is_script = False
+                except Exception:
+                    is_script = False
+
+                if firefox_exec and (firefox_exec.startswith('/snap') or is_script):
+                    # 常见 snap firefox 真正二进制的候选路径
+                    snap_candidates = [
+                        '/snap/firefox/current/usr/lib/firefox/firefox',
+                        '/snap/firefox/current/firefox',
+                        '/snap/bin/firefox'
+                    ]
+                    for cand in snap_candidates:
+                        if os.path.exists(cand) and os.access(cand, os.X_OK):
+                            ff_opts.binary_location = cand
+                            break
+                else:
+                    if firefox_exec and os.path.exists(firefox_exec):
+                        ff_opts.binary_location = firefox_exec
+            except Exception:
+                # 不要阻塞浏览器启动；如果无法确定二进制位置，交由 webdriver 自行寻找
+                pass
+
             # firefox service
             if FirefoxService:
                 svc = FirefoxService(log_path=_os.devnull, service_args=None)
@@ -530,6 +697,7 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
             driver.quit()
         except Exception:
             pass
+        
 def open_image(image_path):
     system = platform.system()
     

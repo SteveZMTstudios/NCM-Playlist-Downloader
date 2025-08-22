@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>复制网易云 Cookie（书签脚本）</title>
+  <style>
+    body{font-family:system-ui,Arial;max-width:800px;margin:16px;padding:16px}
+    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}
+    button{padding:10px 14px;border-radius:6px;border:0;background:#2d89ef;color:#fff;font-weight:600}
+    .hint{background:#fff8cc;padding:10px;border-radius:6px;margin:8px 0}
+  </style>
+</head>
+<body>
+  <h2>在移动浏览器中一键复制网易云 Cookie（用于 Termux）</h2>
+  <p>此页面提供一个 <b>书签脚本（bookmarklet）</b>，你可以把它保存为书签。登录 <code>y.music.163.com</code> 后，在该站点的页面执行书签脚本，会尝试把 <code>document.cookie</code> 的内容复制到剪贴板，之后在 Termux 中运行脚本可用 <code>termux-clipboard-get</code> 读取。</p>
+
+  <h3>书签脚本（直接拖到书签或手动创建书签）</h3>
+  <pre id="bm">javascript:(function(){try{var c=document.cookie||''; if(!c){throw 'no-cookie'}; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(function(){alert('Cookie 已复制到剪贴板');},function(e){prompt('无法自动写入剪贴板，请手动复制下面的内容：',c);});}else{prompt('请手动复制下面的 Cookie：',c);} }catch(e){try{prompt('无法读取 document.cookie (可能为 HttpOnly)，请使用浏览器内置的 Cookie 导出/查看功能或使用 Via 的盾牌导出，再粘贴。',document.cookie||'');}catch(e2){alert('读取 Cookie 失败，请手动查看浏览器设置。');}}})();</pre>
+
+  <p>长按上面代码并复制，或按下按钮在新窗口打开并手动保存为书签。</p>
+  <p><button id="openBtn">在新标签打开可保存为书签（在某些浏览器需手动创建）</button></p>
+
+  <div class="hint">
+    <strong>使用步骤（推荐）</strong>
+    <ol>
+      <li>在手机浏览器中打开并登录：<code>https://y.music.163.com/m/login</code>，完成扫码并确认登录，页面会跳转到 <code>y.music.163.com/m</code>。</li>
+      <li>在用户已登录且仍在 <code>y.music.163.com</code> 的页面，执行已保存的书签脚本（点击书签）。</li>
+      <li>脚本会尝试把页面的 <code>document.cookie</code> 复制到剪贴板；若浏览器阻止自动写入，会弹出一个包含 cookie 的提示，手动复制即可。</li>
+      <li>回到 Termux，运行你的 Python 脚本或执行 <code>termux-clipboard-get</code> 获取剪贴板内容，脚本会解析包含 <code>MUSIC_U</code> 的 cookie。</li>
+    </ol>
+  </div>
+
+  <h3>在 Via / Chrome / Firefox 上的提示</h3>
+  <ul>
+    <li>Via：如果你能使用右上盾牌导出 cookie，也可直接复制导出的文本并在 Termux 中粘贴或等待脚本轮询剪贴板。</li>
+    <li>Chrome：手机 Chrome 通常限制剪贴板的写入，但书签脚本在用户点击时通常可触发复制；如果被阻止，脚本会弹出包含 cookie 的提示，手动复制即可。</li>
+    <li>Firefox：同样适用，或使用扩展导出 cookie（若支持）。</li>
+  </ul>
+
+  <h3>替代：如果书签脚本不能读取到 HttpOnly cookie</h3>
+  <p>HttpOnly 标记的 cookie 无法被 JavaScript 读取（浏览器安全策略）。如果 <code>MUSIC_U</code> 是 HttpOnly，你需要在浏览器内使用“查看站点 cookie”或浏览器的导出功能，或使用浏览器扩展/开发者工具导出 cookie，然后手动粘贴到 Termux。</p>
+
+  <h3>调试与手动复制命令（Termux）</h3>
+  <p>在 Termux 中读取剪贴板：</p>
+  <pre>termux-clipboard-get</pre>
+  <p>将剪贴板内容保存到临时文件：</p>
+  <pre>termux-clipboard-get > /sdcard/ncm_cookie.txt</pre>
+
+  <script>
+    document.getElementById('openBtn').addEventListener('click', function(){
+      // 打开一个空白页，然后在地址栏粘贴脚本并保存为书签
+      window.open(location.href, '_blank');
+      alert('已打开新标签，请将上面的 JS 代码保存为书签（书签名称自拟），然后在 y.music.163.com 登录页面点击该书签执行。');
+    });
+  </script>
+</body>
+</html>
