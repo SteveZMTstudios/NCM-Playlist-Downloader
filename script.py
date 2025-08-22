@@ -1483,7 +1483,7 @@ if __name__ == "__main__":
 
         def render_menu(display_only=False):
             
-            print("\33[1J\33[H\33[0&J",end="")  # 清屏
+            print("\33[1J\33[H\33[0J",end="")  # 清屏
             # if os.name == 'nt': # Windows 系统
             #     os.system('cls')
             # else: # Linux 或 macOS 系统
