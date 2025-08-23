@@ -364,7 +364,7 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
 
         if is_termux:
             login_url = "https://y.music.163.com/m/login"
-            print("\33[33m! 检测到 Termux/Android 环境，强制使用 Via 浏览器（mark.via / mark.via.gp）打开登录页\33[0m")
+            print("\33[33m! 检测到 Termux/Android 环境，使用 Via 浏览器（mark.via / mark.via.gp）打开登录页\33[0m")
 
             # 强制使用 Via 浏览器：尝试以包名启动，若无法通过包名启动则提示安装并返回（不再回退到其他浏览器）
             via_candidates = ['mark.via', 'mark.via.gp']
@@ -381,8 +381,7 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
             if not installed_via:
                 print('\033[31m× 未检测到可用的 Via 浏览器 (mark.via / mark.via.gp) 或无法通过包名启动。请先安装 Via 后重试。\033[0m')
                 print('  可通过 Play 商店或 F-Droid 安装：')
-                print('    Play 商店: https://play.google.com/store/apps/details?id=mark.via')
-                print('    F-Droid: https://f-droid.org/en/packages/mark.via/')
+                print('    Play 商店: https://play.google.com/store/apps/details?id=mark.via.gp')
                 print('  或直接下载 APK 安装：')
                 print('    https://res.viayoo.com/v1/via-release-cn.apk')
                 try:
@@ -403,7 +402,7 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
                 print('\033[31m× 无法启动 Via 浏览器， 请确认 Via 已安装并允许从 Termux 启动。\033[0m')
                 return None
 
-            print("  请在 Via 浏览器中完成扫码登录；登录成功后请使用右上角盾牌图标或复制 Cookie 到剪贴板，程序将自动读取（等待最多 %s 秒）...\n若程序卡死请检查是否安装Termux:API..." % timeout_seconds)
+            print("  请在 Via 浏览器中完成登录；\n. 登录成功后请使用右上角盾牌图标复制 Cookie 到剪贴板，程序将自动读取（等待最多 %s 秒）...\n. 若程序卡死请检查是否安装Termux:API..." % timeout_seconds)
 
             clipboard_get = _shutil.which('termux-clipboard-get')
             start = time.time()
@@ -424,7 +423,7 @@ def browser_qr_login_via_selenium(timeout_seconds: int = 180):
 
                 # 如果轮询结束仍未获取到内容，则提示用户手动粘贴一次
                 if not cookie_text:
-                    print("  未在剪贴板检测到有效 Cookie，请手动将从浏览器复制的 Cookie 粘贴到这里（包含 MUSIC_U）：")
+                    print("  未在剪贴板检测到有效 Cookie，请手动将从浏览器复制的 Cookie 粘贴到这里（长按终端，选择Paste）：")
                     cookie_text = input("  粘贴 Cookie 字串并回车 > ").strip()
             else:
                 # 未安装 termux-clipboard-get：只请求一次用户手动粘贴
@@ -1524,11 +1523,11 @@ if __name__ == "__main__":
                     ready_to_go = True
                 elif config['track_id'] and preview_cache['track']['error']:
                     print(color_text(f"获取单曲信息失败：{preview_cache['track']['error']}，无法下载！", '31;5'))
-                    print("\n")
+                    print("")
                     ready_to_go = False
                 else:
                     print(color_text(f"请先按[2]，指定要下载的曲目ID！", '31;5'))
-                    print("\n")
+                    print("")
                     ready_to_go = False
             else:
                 print("歌单详细信息: " if config['playlist_id'] else "详细信息: ")
@@ -1542,11 +1541,11 @@ if __name__ == "__main__":
                     ready_to_go = True
                 elif config['playlist_id'] and preview_cache['playlist']['error']:
                     print(color_text(f"获取歌单信息失败：{preview_cache['playlist']['error']}，无法下载！", '31;5'))
-                    print("\n")
+                    print("")
                     ready_to_go = False
                 else:
                     print(color_text(f"请先按[2]，指定要下载的歌单ID！", '31;5'))
-                    print("\n")
+                    print("")
                     ready_to_go = False
             print("\n" if display_only else "\33[32m准备就绪，可以下载。\n\33[0m" if ready_to_go else "\n",end="")
             print("\33[2m"+"="*terminal_width+"\33[0m")

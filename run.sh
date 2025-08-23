@@ -64,19 +64,19 @@ install_system_packages() {
         "apt")
             echo "使用 apt 安装系统级 Python 包..."
             sudo apt-get update
-            sudo apt-get install -y python3-requests python3-pillow python3-pip python3-qrcode python3-venv python3-full python3-colorama python3-mutagen
+            sudo apt-get install -y python3-requests python3-pillow python3-pip python3-qrcode python3-venv python3-full python3-colorama python3-mutagen python3-selenium
             ;;
         "dnf"|"yum")
             echo "使用 ${PKG_MANAGER} 安装系统级 Python 包..."
-            sudo $PKG_MANAGER install -y python3-requests python3-pillow python3-pip python3-qrcode python3-colorama python3-mutagen
+            sudo $PKG_MANAGER install -y python3-requests python3-pillow python3-pip python3-qrcode python3-colorama python3-mutagen python3-selenium
             ;;
         "pacman")
             echo "使用 pacman 安装系统级 Python 包..."
-            sudo pacman -Sy python-requests python-pillow python-pip python-qrcode  python-colorama python-mutagen
+            sudo pacman -Sy python-requests python-pillow python-pip python-qrcode  python-colorama python-mutagen python-selenium 
             ;;
         "zypper")
             echo "使用 zypper 安装系统级 Python 包..."
-            sudo zypper install -y python3-requests python3-Pillow python3-pip python3-qrcode python3-colorama python3-mutagen
+            sudo zypper install -y python3-requests python3-Pillow python3-pip python3-qrcode python3-colorama python3-mutagen python3-selenium 
             ;;
         *)
             echo "警告: 未知的包管理器，无法安装系统级 Python 包"
@@ -210,9 +210,9 @@ if [ "$VENV_SUPPORTED" = false ]; then
             install_system_packages
             
             # 再次尝试安装pyncm（因为系统包可能没有）
-            pip install --user pyncm mutagen > /dev/null 2>&1 || {
+            pip install --user pyncm mutagen selenium > /dev/null 2>&1 || {
                 echo "尝试系统级安装..."
-                pip install pyncm mutagen --break-system-packages || {
+                pip install pyncm mutagen selenium --break-system-packages || {
                     echo "警告: 无法安装pyncm，脚本可能无法正常运行"
                 }
             }
