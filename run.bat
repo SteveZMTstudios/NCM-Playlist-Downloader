@@ -27,7 +27,7 @@ if "%DEPS_INSTALLED%"=="false" (
 ) else (
     echo “¿¿µºÏ≤ÈÕÍ≥…...
 )
-
+cls
 python script.py
 
 deactivate

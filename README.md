@@ -3,20 +3,15 @@
 ## 介绍  
   
 此脚本为获取网易云歌单并批量下载极高/无损/高清音质  
-
 自动下载到当前目录下downloads文件夹，并生成歌单列表文件  
-
 不消耗网易云音乐的下载次数，支持无损音质下载  
-
 可同步下载歌词（包括翻译）和元数据  
-
-使用简单，只需扫码登录，输入歌单id即可下载
+使用简单，只需扫码登录，输入歌单id即可下载  
 
 ## 使用方法
 
-确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令
+确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令  
 ```
-git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 pip install -r requirements.txt
@@ -24,7 +19,7 @@ python script.py
 ```
 
 ### Windows 
-此方法使用虚拟环境，对设备影响更小  
+此方法使用虚拟环境，对设备影响更小    
 
 ```Powershell
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
@@ -36,7 +31,6 @@ cd NCM-Playlist-Downloader
 
 ```bash
 git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
-git clone https://github.com/padoru233/NCM-Playlist-Downloader.git
 cd NCM-Playlist-Downloader
 chmod +x run.sh
 ./run.sh
@@ -44,11 +38,11 @@ chmod +x run.sh
 
 ---
 
-1. 多种登录方式兼容，数据完全存储在本地  
-2. 完成登录方式后，在界面输入需要调整的选项
-3. 获取歌单id，在歌单界面选择分享，得到网址：`https://music.163.com/m/playlist?id=12345678`
-其中`playlist?id=`后面的数字为歌单id  
-4. 调整完选项后，按数字9回车开始下载
+- 支持多种登录方式，所有数据仅保存在本地。
+- 登录成功后，界面会提示你调整需要的选项。
+- 获取歌单 ID：在歌单页面选择“分享”，复制类似 https://music.163.com/m/playlist?id=12345678 的链接，链接中 playlist?id= 后面的数字就是歌单 ID。
+  （也可以直接复制歌单页面的链接，程序会自动提取 ID。）
+- 选项确认无误后，输入数字 9 并按回车开始下载。
 
 ## 说明
 
@@ -252,11 +246,12 @@ I’m turning off the volume when you speak<br>
   便于查找特定歌曲和记录歌单内容。
 
 - `!#_FAILED_LIST.txt`：
-  记录下载失败的歌曲列表，包含歌曲ID、名称、艺术家和失败原因。
-  常见失败原因包括：歌曲已下架、地区限制、单曲付费、VIP权限不足等。
+  记录下载失败的歌曲列表，包含歌曲ID、名称、艺术家和失败原因。  
+  常见失败原因包括：歌曲已下架、地区限制、单曲付费、VIP权限不足等。  
 
 ## 测试
-克隆本项目后，创建虚拟环境并安装依赖`requirements.txt`和`pytest`，然后运行下列命令以执行单元测试
+
+克隆本项目后，创建虚拟环境并安装依赖`requirements.txt`和`pytest`，然后运行下列命令以执行单元测试  
 ```
 python -m pytest tests/test_script.py -q
 ```

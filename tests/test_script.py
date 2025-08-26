@@ -53,6 +53,8 @@ sys.modules['requests'] = req_mod
 # mutagen minimal
 mut = types.ModuleType('mutagen')
 sys.modules['mutagen'] = mut
+# Provide a minimal File attribute so `from mutagen import File` works in script.py
+setattr(mut, 'File', lambda *a, **k: None)
 mut_id3 = types.ModuleType('mutagen.id3')
 class DummyID3(dict):
     def save(self, *a, **k):
@@ -91,7 +93,17 @@ import pytest
 
 # Now import the script under test
 import importlib
-script = importlib.import_module('script')
+try:
+    script = importlib.import_module('script')
+except ModuleNotFoundError:
+    # pytest / different environments may not put repo root on sys.path.
+    # Fallback: load script.py directly from repository root by file path.
+    import importlib.util
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    script_path = os.path.join(repo_root, 'script.py')
+    spec = importlib.util.spec_from_file_location('script', script_path)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
 
 
 def test_parse_lrc_empty():

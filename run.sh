@@ -173,6 +173,7 @@ if [ "$VENV_SUPPORTED" = true ]; then
             
             echo "运行脚本..."
             if [ -f "script.py" ]; then
+                clear
                 python script.py
             else
                 echo "错误: script.py 文件不存在"
@@ -212,7 +213,7 @@ if [ "$VENV_SUPPORTED" = false ]; then
             # 再次尝试安装pyncm（因为系统包可能没有）
             pip install --user pyncm mutagen selenium > /dev/null 2>&1 || {
                 echo "尝试系统级安装..."
-                pip install pyncm mutagen selenium --break-system-packages || {
+                pip install -r requirements.txt --break-system-packages || {
                     echo "警告: 无法安装pyncm，脚本可能无法正常运行"
                 }
             }
@@ -221,6 +222,7 @@ if [ "$VENV_SUPPORTED" = false ]; then
     
     echo "运行脚本（使用系统 Python）..."
     if [ -f "script.py" ]; then
+        clear
         python3 script.py
     else
         echo "错误: script.py 文件不存在"
