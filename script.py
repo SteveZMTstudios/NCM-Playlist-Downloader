@@ -1,6 +1,7 @@
 import sys, os, json, qrcode, time, pyncm, requests, re, platform, subprocess, shutil # pyright: ignore[reportMissingModuleSource, reportMissingImports]
 from pyncm.apis import playlist, track, login # pyright: ignore[reportMissingImports]
-import functools
+import functools 
+import unicodedata
 import threading
 from contextlib import suppress
 from requests.exceptions import Timeout, ConnectionError, RequestException # type: ignore
@@ -987,47 +988,200 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                     safe_filepath = os.path.join(download_path, safe_filename)
                     file_size = int(response.headers.get('content-length', 0))
                     progress_status = ''
-                    if index is not None and total is not None:
-                        progress_status = f'[{index}/{total}] '
-                    if terminal_width >= 88:
-                        print('=' * terminal_width + '\x1b[K' + f'\n\x1b[94m{progress_status}正在下载: {safe_filename}\x1b[0m\x1b[K')
-                    else:
-                        print(f'正在下载: {safe_filename}\x1b[0m\x1b[K')
+                    # ===== 新进度条逻辑（单行反色，宽终端才启用） =====
+                    try:
+                        term_w = terminal_width  # 全局在主入口已定义
+                    except NameError:
+                        term_w, _ = get_terminal_size()
+                    digits = len(str(total)) if (index is not None and total is not None) else 0
+                    idx_str = f"[{index:0{digits}d}/{total}] " if (index is not None and total is not None) else ''
+                    # 预估基础行（用于是否采用新样式判断）
+                    base_core = f"100.0% {idx_str}正在下载:{safe_filename}   999.99MB/999.99MB 99999KB/s 9999s"
+                    use_single_line = term_w >= 60 and len(base_core) <= term_w - 2  # 预留一点余量
                     downloaded = 0
-                    progress_bar_length = 35 if terminal_width >= 88 else min(20, terminal_width - 40)
-                    speed = 0
-                    show_progress_bar = terminal_width >= 88
                     last_downloaded = 0
                     last_update_time = time.time()
-                    download_stalled = False
-                    no_progress_timer = None
+                    start_time = time.time()
+                    speed = 0.0
+                    used_single_line_style = False
+                    fallback_header_printed = False  # 窄终端备用模式是否已输出首行
 
-                    def check_download_progress():
-                        nonlocal download_stalled, last_downloaded
-                        if downloaded == last_downloaded:
-                            download_stalled = True
+                    def human_eta(rem_bytes, spd_bytes):
+                        if spd_bytes <= 0 or rem_bytes <= 0:
+                            return '--'
+                        eta = rem_bytes / spd_bytes
+                        if eta < 60:
+                            return f'{int(eta)}s'
+                        elif eta < 3600:
+                            m = int(eta // 60)
+                            s = int(eta % 60)
+                            return f'{m}m{s:02d}s'
+                        else:
+                            h = int(eta // 3600)
+                            m = int((eta % 3600) // 60)
+                            return f'{h}h{m:02d}m'
+
+                    # 宽度计算工具：考虑中日韩全角字符宽度=2
+                    
+
+                    def cell_width(ch: str) -> int:
+                        if not ch:
+                            return 0
+                        eaw = unicodedata.east_asian_width(ch)
+                        return 2 if eaw in ('W', 'F') else 1
+
+                    def display_width(text: str) -> int:
+                        return sum(cell_width(c) for c in text)
+
+                    def truncate_filename(fname: str, max_disp: int) -> str:
+                        # 保留扩展名
+                        name_no_ext, ext = os.path.splitext(fname)
+                        ext_w = display_width(ext)
+                        ell_w = display_width('…')
+                        # 如果本身就适合
+                        if display_width(fname) <= max_disp:
+                            return fname
+                        # 预留扩展名与省略号
+                        remain = max_disp - ext_w - ell_w
+                        if remain <= 1:
+                            # 极端情况下直接截掉
+                            return '…' + ext
+                        # 截取
+                        acc = ''
+                        w = 0
+                        for ch in name_no_ext:
+                            cw = cell_width(ch)
+                            if w + cw > remain:
+                                break
+                            acc += ch
+                            w += cw
+                        return acc + '…' + ext
+
                     with open(safe_filepath, 'wb') as f:
-                        start_time = time.time()
-                        for chunk in response.iter_content(chunk_size=1024):
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                current_time = time.time()
-                                if current_time - last_update_time >= 10:
-                                    if downloaded == last_downloaded:
-                                        print(f'\x1b[33m! 下载 {safe_filename} 停滞，正在重试...\x1b[0m\x1b[K')
-                                        break
-                                    last_downloaded = downloaded
-                                    last_update_time = current_time
-                                if file_size > 0 and show_progress_bar:
-                                    percent = downloaded / file_size
-                                    bar_filled = int(progress_bar_length * percent)
-                                    bar = '\x1b[32m█' * bar_filled + '\x1b[0m_' * (progress_bar_length - bar_filled)
-                                    elapsed_time = time.time() - start_time
-                                    if elapsed_time > 0:
-                                        speed = downloaded / elapsed_time / 1024
-                                    sys.stdout.write(f'\r|{bar}| {percent * 100:.1f}% {downloaded / 1024 / 1024:.2f}MB/{file_size / 1024 / 1024:.2f}MB {speed:.1f}KB/s\x1b[K')
-                                    sys.stdout.flush()
+                        for chunk in response.iter_content(chunk_size=64 * 1024):
+                            if not chunk:
+                                continue
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            now = time.time()
+                            # 超时 / 停滞检测（10 秒无进展）
+                            if now - last_update_time >= 10:
+                                if downloaded == last_downloaded:
+                                    print(f'\n\x1b[33m! 下载 {safe_filename} 停滞，正在重试...\x1b[0m\x1b[K')
+                                    break
+                                last_downloaded = downloaded
+                                last_update_time = now
+                            # 进度显示
+                            if file_size > 0:
+                                percent = downloaded / file_size
+                            else:
+                                percent = 0.0
+                            elapsed = now - start_time
+                            if elapsed > 0:
+                                speed = downloaded / elapsed  # bytes/s
+                            spd_kb = speed / 1024
+                            if file_size > 0:
+                                remaining = file_size - downloaded
+                            else:
+                                remaining = -1
+                            eta_str = human_eta(remaining, speed) if remaining > 0 else '--'
+                            downloaded_mb = downloaded / 1024 / 1024
+                            total_mb = file_size / 1024 / 1024 if file_size > 0 else 0
+                            if use_single_line:
+                                used_single_line_style = True
+                                # 每次渲染重新测量终端宽度
+                                try:
+                                    term_w, _ = get_terminal_size()
+                                except Exception:
+                                    pass
+                                # 重新判断是否仍适合单行
+                                dynamic_base = f"{idx_str}正在下载:{safe_filename} 100.0%  999.99MB/999.99MB 99999KB/s 9999s"
+                                if not (term_w >= 60 and display_width(dynamic_base) <= term_w - 2):
+                                    # 切换到窄终端备用模式，确保稍后打印首行
+                                    use_single_line = False
+                                    # 立即打印首行（若尚未打印）
+                                    if not fallback_header_printed:
+                                        progress_status = idx_str
+                                        print(f'\x1b[94m{progress_status}正在下载: {safe_filename}\x1b[0m')
+                                        fallback_header_printed = True
+                                    continue
+                                # 百分比文本（不带前导0）
+                                if file_size > 0:
+                                    pct_val = percent * 100
+                                    percent_raw = f"{pct_val:.1f}%"
+                                    if pct_val < 10:
+                                        percent_raw = percent_raw.lstrip('0')  # 5.3%
+                                else:
+                                    percent_raw = '---%'
+                                percent_field_width = 6  # 容纳 100.0% (6字符)
+                                if len(percent_raw) < percent_field_width:
+                                    pad_total = percent_field_width - len(percent_raw)
+                                    left_pad = pad_total // 2
+                                    right_pad = pad_total - left_pad
+                                    percent_txt = ' ' * left_pad + percent_raw + ' ' * right_pad
+                                else:
+                                    percent_txt = percent_raw[:percent_field_width]
+                                size_txt = f"{downloaded_mb:.2f}MB/{total_mb:.2f}MB" if file_size > 0 else f"{downloaded_mb:.2f}MB/??MB"
+                                # 无千分位分隔的速度
+                                spd_txt = (f"{spd_kb:.0f}KB/s" if spd_kb >= 100 else f"{spd_kb:.1f}KB/s") if spd_kb > 0 else '0KB/s'
+                                right_part = f"{size_txt} {spd_txt} {eta_str}".strip()
+                                base_left_prefix = f"{idx_str}正在下载:"
+                                percent_part = f" {percent_txt}"  # 前置空格分隔
+                                right_w = display_width(right_part)
+                                static_left_w = display_width(base_left_prefix) + display_width(percent_part)
+                                max_name_w = term_w - right_w - static_left_w - 1
+                                disp_name = safe_filename
+                                if max_name_w <= 5:
+                                    use_single_line = False
+                                    continue
+                                if display_width(disp_name) > max_name_w:
+                                    disp_name = truncate_filename(disp_name, max_name_w)
+                                left_part = f"{base_left_prefix}{disp_name}{percent_part}"
+                                left_w = display_width(left_part)
+                                total_w = left_w + 1 + right_w
+                                if total_w > term_w:
+                                    over = total_w - term_w
+                                    adjust_max = max_name_w - over
+                                    if adjust_max > 3:
+                                        disp_name = truncate_filename(disp_name, adjust_max)
+                                        left_part = f"{base_left_prefix}{disp_name}{percent_part}"
+                                        left_w = display_width(left_part)
+                                        total_w = left_w + 1 + right_w
+                                spaces_w = term_w - (left_w + right_w)
+                                if spaces_w < 1:
+                                    spaces_w = 1
+                                line_full = left_part + ' ' * spaces_w + right_part
+                                # 反色填充
+                                fill_cells = int(term_w * percent)
+                                if fill_cells < 0:
+                                    fill_cells = 0
+                                if fill_cells > term_w:
+                                    fill_cells = term_w
+                                acc = ''
+                                acc_w = 0
+                                i = 0
+                                while i < len(line_full) and acc_w < fill_cells:
+                                    ch = line_full[i]
+                                    acc += ch
+                                    acc_w += cell_width(ch)
+                                    i += 1
+                                remainder = line_full[i:]
+                                # 单行进度条整体文字黄色；反色区+黄色，后续普通黄色。
+                                sys.stdout.write('\r' + (f'\x1b[7;33m{acc}\x1b[0m\x1b[33m' + remainder + '\x1b[0m'))
+                                cur_disp_w = display_width(line_full)
+                                if cur_disp_w < term_w:
+                                    sys.stdout.write(' ' * (term_w - cur_disp_w))
+                                sys.stdout.flush()
+                            else:
+                                # 旧窄终端备用方案：只打印一次标题行
+                                if not fallback_header_printed:
+                                    progress_status = idx_str
+                                    print(f'\x1b[94m{progress_status}正在下载: {safe_filename}\x1b[0m')
+                                    fallback_header_printed = True
+                                # 不再实时输出进度，完成后输出成功信息
+                        else:
+                            # for-else：正常完成循环（未 break）
+                            pass
                     if downloaded < file_size and file_size > 0:
                         retry_count += 1
                         if retry_count <= max_retries:
@@ -1046,10 +1200,22 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                         write_to_failed_list(track_id, track_name, artist_name, f'下载失败: {e}', download_path)
                         print(f'\x1b[31m× 多次尝试下载失败: {e}\x1b[0m\x1b[K')
                         return
-            if show_progress_bar:
-                sys.stdout.write('\r\x1b[2A\x1b[K')
+            if 'used_single_line_style' in locals() and used_single_line_style:
+                # 清除当前反色行
+                try:
+                    sys.stdout.write('\r' + ' ' * term_w + '\r')
+                except Exception:
+                    pass
                 print(f'\x1b[32m✓ 已下载: \x1b[0m{safe_filename}\x1b[K')
             else:
+                # 旧样式成功信息
+                try:
+                    # 清除当前行并上移一行后清除上一行
+                    sys.stdout.write('\r\x1b[K\x1b[1A\x1b[K')
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+                progress_status = f'[{index}/{total}] ' if (index is not None and total is not None) else ''
                 print(f'\x1b[32m✓ 已下载{progress_status}\x1b[0m{safe_filename}\x1b[K')
             try:
                 audio = MutagenFile(safe_filepath)
@@ -1231,7 +1397,7 @@ if __name__ == '__main__':
             return f'\x1b[{color_code}m{text}\x1b[0m'
 
         def set_download_path():
-            print('\n\x1b[2m===========================================\x1b[0m')
+            print('\n\x1b[2m' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 下载路径编辑')
             print('\n  输入下载路径（可拖拽文件夹至此），按回车确认。')
             ipt = input('\x1b[36m  > \x1b[0m\x1b[4m')
@@ -1245,7 +1411,7 @@ if __name__ == '__main__':
             config['mode'] = 'track' if config['mode'] == 'playlist' else 'playlist'
 
         def input_id_for_mode():
-            print('\n\x1b[2m===========================================\x1b[0m')
+            print('\n\x1b[2m' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 配置 ID')
             print('\x1b[94mi 有关于歌单 ID 和单曲 ID 的说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md#使用方法\x1b[0m')
 
@@ -1314,7 +1480,7 @@ if __name__ == '__main__':
             refresh_preview()
 
         def choose_level():
-            print('\n\x1b[2m===========================================\x1b[0m')
+            print('\n\x1b[2m' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 音质 选项')
             print('\x1b[94mi 有关于音质选项的详细说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md#音质说明\x1b[0m')
             print('可使用的音质选项：')
@@ -1329,7 +1495,7 @@ if __name__ == '__main__':
                 config['level'] = mapping[sel]
 
         def choose_lyrics():
-            print('\x1b[2m\n===========================================\x1b[0m')
+            print('\x1b[2m\n' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 歌词 选项')
             print('保存歌词的方式：')
             print('\x1b[36m[1]\x1b[0m 写入标签和文件')
