@@ -996,7 +996,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                     digits = len(str(total)) if (index is not None and total is not None) else 0
                     idx_str = f"[{index:0{digits}d}/{total}] " if (index is not None and total is not None) else ''
                     # 预估基础行（用于是否采用新样式判断）
-                    base_core = f"100.0% {idx_str}正在下载:{safe_filename}   999.99MB/999.99MB 99999KB/s 9999s"
+                    base_core = f"100.0% {idx_str}正在下载:...   999.99MB/999.99MB 99999KB/s 9999s"
                     use_single_line = term_w >= 60 and len(base_core) <= term_w - 2  # 预留一点余量
                     downloaded = 0
                     last_downloaded = 0
@@ -1095,7 +1095,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                                 except Exception:
                                     pass
                                 # 重新判断是否仍适合单行
-                                dynamic_base = f"{idx_str}正在下载:{safe_filename} 100.0%  999.99MB/999.99MB 99999KB/s 9999s"
+                                dynamic_base = f"{idx_str}正在下载:...... 100.0%  999.99MB/999.99MB 99999KB/s 9999s"
                                 if not (term_w >= 60 and display_width(dynamic_base) <= term_w - 2):
                                     # 切换到窄终端备用模式，确保稍后打印首行
                                     use_single_line = False
@@ -1166,7 +1166,6 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                                     acc_w += cell_width(ch)
                                     i += 1
                                 remainder = line_full[i:]
-                                # 单行进度条整体文字黄色；反色区+黄色，后续普通黄色。
                                 sys.stdout.write('\r' + (f'\x1b[7;33m{acc}\x1b[0m\x1b[33m' + remainder + '\x1b[0m'))
                                 cur_disp_w = display_width(line_full)
                                 if cur_disp_w < term_w:
