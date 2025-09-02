@@ -1,6 +1,17 @@
 qrcode
+pyperclip
+pyncm
+requests
+colorama
+mutagen
+Pillow
+selenium
+webdriver-manager
+pytest
+qrcode
 requests
 pillow
 pyncm
 colorama
 mutagen
+
