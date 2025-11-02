@@ -11,7 +11,8 @@ try:
     from colorama import init, Fore, Back, Style # type: ignore
     init(autoreset=False)
     COLORAMA_INSTALLED = True
-except ImportError:
+except ImportError as e:
+    if DEBUG: print(e)
     COLORAMA_INSTALLED = False
     if platform.system() == 'Windows':
         os.system('pip install colorama')
@@ -123,28 +124,81 @@ def get_qrcode():
     """
     try:
         print('\n  请选择登录方式：')
-        print('  \x1b[36m[1]\x1b[0m \x1b[9mpyncm 直接扫码登录\x1b[0m \t\x1b[2m上游接口已失效，无法使用\x1b[0m')
-        print('  \x1b[36m[2]\x1b[0m \x1b[1m打开浏览器扫码登录\x1b[0m \t\x1b[2m适用于桌面设备，需要外部浏览器（推荐）\x1b[0m')
+        print('  \x1b[36m[1]\x1b[0m \x1b[1mpyncm 直接扫码登录\x1b[0m \t\x1b[2m手机端扫描二维码登录\x1b[0m')
+        print('  \x1b[36m[2]\x1b[0m 打开浏览器扫码登录\x1b[0m \t\x1b[2m适用于桌面设备，需要外部浏览器\x1b[0m')
         print('  \x1b[36m[3]\x1b[0m 手机短信/账号密码登录 \t\x1b[2m本地终端实现\x1b[0m')
         print('  \x1b[36m[4]\x1b[0m 手动导入 Cookie 登录 \t\x1b[2m直接粘贴 MUSIC_U 等 cookie 字串\x1b[0m')
         print('  \x1b[36m[5]\x1b[0m 匿名登录 \t\t\t\x1b[2m创建随机凭据，不推荐\x1b[0m')
-        choice = input('  请选择 (默认 2)\x1b[36m > \x1b[0m').strip() or '2'
+        gm_cookie_path = None
+        try:
+            candidates = []
+            mf_root = os.environ.get('MUSICFOX_ROOT')
+            if mf_root:
+                candidates.append(os.path.join(mf_root, 'cookie'))
+
+            system = platform.system()
+            home = os.path.expanduser('~')
+            if DEBUG: print(f'system: {system}, home: {home}')
+            if system == 'Darwin':
+                candidates.append(os.path.join(home, 'Library', 'Application Support', 'go-musicfox', 'cookie'))
+                candidates.append(os.path.join(home, '.go-musicfox', 'cookie'))
+            elif system == 'Linux':
+                xdg = os.environ.get('XDG_CONFIG_HOME')
+                if xdg:
+                    candidates.append(os.path.join(xdg, 'go-musicfox', 'cookie'))
+                candidates.append(os.path.join(home, '.local', 'share', 'go-musicfox', 'cookie'))
+                candidates.append(os.path.join(home, '.go-musicfox', 'cookie'))
+            elif system == 'Windows':
+                appdata = os.environ.get('APPDATA')
+                if appdata:
+                    candidates.append(os.path.join(appdata, 'go-musicfox', 'cookie'))
+                local_appdata = os.environ.get('LOCALAPPDATA')
+                if local_appdata:
+                    candidates.append(os.path.join(local_appdata, 'go-musicfox', 'cookie'))
+                userprofile = os.environ.get('USERPROFILE') or home
+                candidates.append(os.path.join(userprofile, '.go-musicfox', 'cookie'))
+            else:
+                xdg = os.environ.get('XDG_CONFIG_HOME')
+                if xdg:
+                    candidates.append(os.path.join(xdg, 'go-musicfox', 'cookie'))
+                candidates.append(os.path.join(home, '.local', 'share', 'go-musicfox', 'cookie'))
+                candidates.append(os.path.join(home, '.go-musicfox', 'cookie'))
+
+            if system == 'Windows' and not os.environ.get('LOCALAPPDATA'):
+                local_guess = os.path.join(home, 'AppData', 'Local', 'go-musicfox', 'cookie')
+                candidates.append(local_guess)
+
+            for p in candidates:
+                with suppress(Exception):
+                    if DEBUG: print(p)
+                    if p and os.path.exists(p):
+                        gm_cookie_path = p
+                        if DEBUG: print(f'SUCCESS: added entry(see below) gm_cookie_path:{gm_cookie_path}, ')
+                        break
+                    if DEBUG: print("^"*len(p) + " -> NOT EXIST")
+        except Exception:
+            gm_cookie_path = None
+        gm_exists = bool(gm_cookie_path and os.path.exists(gm_cookie_path))
+        if gm_exists:
+            print(f"  \x1b[32m[6]\x1b[0m 通过 go-musicfox 登录\t\x1b[2m您已在 musicfox 中登录，可直接使用\x1b[0m")
+        choice = input('  请选择 (默认 1)\x1b[36m > \x1b[0m').strip() or '1'
         if choice == '1':
             try:
-                print('\x1b[33m! 使用 pyncm 直接扫码登录已确认因接口过时封堵，您仍要尝试吗？\x1b[0m')
-                print('  [0] 取消  [9] 继续')
-                confirm = input('  请输入您的选择 > ').strip()
-                if confirm == '9':
-                    print('\x1b[33m! 正在尝试 pyncm 直接扫码登录...\x1b[0m')
-                else:
-                    print('\x1b[31m× 已取消 pyncm 直接扫码登录。\x1b[0m')
-                    return get_qrcode()
+                # print('\x1b[33m! 使用 pyncm 直接扫码登录已确认因接口过时封堵，您仍要尝试吗？\x1b[0m')
+                # print('  [0] 取消  [9] 继续')
+                # confirm = input('  请输入您的选择 > ').strip()
+                # if confirm == '9':
+                #     print('\x1b[33m! 正在尝试 pyncm 直接扫码登录...\x1b[0m')
+                # else:
+                #     print('\x1b[31m× 已取消 pyncm 直接扫码登录。\x1b[0m')
+                #     return get_qrcode()
                 uuid_rsp = login.LoginQrcodeUnikey()
                 uuid = uuid_rsp.get('unikey') if isinstance(uuid_rsp, dict) else None
                 if not uuid:
                     print('\x1b[31m× 无法获取二维码unikey\x1b[0m\x1b[K')
                     return get_qrcode()
-                url = f'https://music.163.com/login?codekey={uuid}'
+                # url = f'https://music.163.com/login?codekey={uuid}'
+                url = login.GetLoginQRCodeUrl(uuid)
                 img = qrcode.make(url)
                 img_path = 'ncm.png'
                 img.save(img_path) # pyright: ignore[reportArgumentType]
@@ -169,7 +223,7 @@ def get_qrcode():
                                 display_user_info(session)
                             return session
                         elif code == 8821:
-                            print('\x1b[33m! 接口已失效(8821)\x1b[0m\x1b[K')
+                            print('\x1b[33m! 接口风控(8821)\x1b[0m\x1b[K')
                             raise RuntimeError('登录二维码接口已失效')
                         elif code == 800:
                             print('  二维码已过期，请重新尝试。')
@@ -226,9 +280,10 @@ def get_qrcode():
                 if m == '2':
                     try:
                         import getpass
-                        password = getpass.getpass('  输入密码: ')
-                    except Exception:
-                        password = input('  输入密码: ')
+                        password = getpass.getpass('  输入密码 > ', echo_char='*')
+                    except Exception as e:
+                        if DEBUG: print(e)
+                        password = input('  ！输入密码 > ')
                     rsp = login.LoginViaCellphone(phone, password=password, ctcode=ctcode)
                     code = rsp.get('code') if isinstance(rsp, dict) else None
                     if code == 200:
@@ -305,6 +360,90 @@ def get_qrcode():
                     return get_qrcode()
             except Exception as e:
                 print(f'\x1b[31m× 匿名登录出错: {e}\x1b[0m')
+                return get_qrcode()
+        elif choice == '6':
+            # 读取并导入 %LOCALAPPDATA%\go-musicfox\cookie（Netscape 格式）
+            if not gm_exists:
+                print('\x1b[33m! 无效选择。\x1b[0m')
+                return get_qrcode()
+            print('\x1b[33m! 正在从 go-musicfox 获取登录状态...\x1b[0m')
+            try:
+                cookies = []  # 每项: {domain, path, name, value}
+                with open(gm_cookie_path, 'r', encoding='utf-8', errors='ignore') as fh:
+                    for raw in fh:
+                        line = raw.strip()
+                        if not line:
+                            continue
+                        # 以制表符为主进行切分，不足则尝试任意空白
+                        parts = line.split('\t') if ('\t' in line) else line.split()
+                        if len(parts) < 7:
+                            continue
+                        domain = parts[0]
+                        if domain.startswith('#HttpOnly_') or domain.startswith('#httponly_'):
+                            domain = domain.split('_', 1)[1]
+                        if domain.startswith('#'):
+                            # 注释行
+                            continue
+                        path = parts[2]
+                        name = parts[5]
+                        value = parts[6]
+                        if not name:
+                            continue
+                        cookies.append({'domain': domain, 'path': path or '/', 'name': name, 'value': value})
+                if not cookies:
+                    print('\x1b[31m× 未能从 go-musicfox Cookie 文件解析到任何条目。\x1b[0m')
+                    return get_qrcode()
+                # 构建/获取会话并注入 cookie
+                try:
+                    s = pyncm.GetCurrentSession()
+                except Exception as e:
+                    if DEBUG: print(e)
+                    s = None
+                if s is None:
+                    try:
+                        import requests as _rq
+                        s = _rq.Session()
+                    except Exception as e:
+                        if DEBUG: print(e)
+                        s = pyncm.GetCurrentSession()  # 尽力而为
+                # 设置通用头
+                ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari'
+                with suppress(Exception):
+                    s.headers.update({'User-Agent': ua, 'Referer': 'https://music.163.com/', 'Origin': 'https://music.163.com'})
+                # 注入 cookies
+                music_u_found = False
+                csrf_val = None
+                for c in cookies:
+                    name = c['name']
+                    value = c['value']
+                    domain = c['domain'] or '.music.163.com'
+                    path = c['path'] or '/'
+                    with suppress(Exception):
+                        s.cookies.set(name, value, domain=domain, path=path)
+                    if name == 'MUSIC_U' and value:
+                        music_u_found = True
+                    if name in ('__csrf', 'csrf_token') and value:
+                        csrf_val = value
+                # 补写 csrf_token（requests 不会自动映射）
+                if csrf_val and (not s.cookies.get('csrf_token')):
+                    with suppress(Exception):
+                        s.cookies.set('csrf_token', csrf_val, domain='.music.163.com', path='/')
+                # 挂载为当前会话并写入缓存
+                with suppress(Exception):
+                    pyncm.SetCurrentSession(s)
+                with suppress(Exception):
+                    login.WriteLoginInfo(login.GetCurrentLoginStatus(), s)
+                print('\x1b[32m✓ go-musicfox 登录完成。\x1b[0m')
+                if not music_u_found:
+                    print('\x1b[33m! 警告：未检测到 MUSIC_U，登录流程实际失败！\x1b[0m')
+                with suppress(Exception):
+                    display_user_info(s)
+                return s
+            except FileNotFoundError:
+                print('\x1b[31m× 找不到 go-musicfox Cookie 文件。\x1b[0m')
+                return get_qrcode()
+            except Exception as e:
+                print(f'\x1b[31m× 导入 go-musicfox Cookie 失败: {e}\x1b[0m')
                 return get_qrcode()
         elif choice == '4':
             '\n            从剪贴板或手动粘贴 Cookie 登录（会解析 k=v; k2=v2 格式），并注入到 pyncm.Session\n            '
@@ -1652,9 +1791,30 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print('\x1b[?25h', end='')
         print('\n\n\x1b[33m× 操作已被用户取消（按下了Ctrl + C组合键）。\x1b[0m')
+        
     except Exception as e:
         print(f'\x1b[31m× 出现全局错误: {e}\x1b[0m')
         print('  请报告给开发者以便修复。')
     finally:
         print('\x1b[?25h', end='')
-        input('\x1b[33m  按回车键退出...\x1b[0m')
+        try:
+            resp = input('\x1b[33m  按回车键退出，按\x1b[31m 9 \x1b[33m并回车删除已保存会话文件并退出：\x1b[0m').strip()
+            if resp == '9':
+                removed = []
+                for fn in ('session.json', 'session2.json'):
+                    try:
+                        if os.path.exists(fn):
+                            os.remove(fn)
+                            removed.append(fn)
+                    except Exception:
+                        # 忽略单个文件删除错误
+                        pass
+                if removed:
+                    print('\x1b[32m✓ 已删除会话文件：' + ', '.join(removed) + '\x1b[0m')
+                else:
+                    print('\x1b[33m! 未找到任何会话文件可删除。\x1b[0m')
+        except Exception as e:
+            print(f'\x1b[31m! 退出时发生错误: {e}\x1b[0m')
+        finally:
+            # 保证光标可见
+            print('\x1b[?25h', end='')
