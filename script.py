@@ -27,6 +27,48 @@ from io import BytesIO
 MUTAGEN_INSTALLED = True
 USER_INFO_CACHE = {'nickname': None, 'user_id': None, 'vip': None}
 
+
+def send_desktop_notification(title: str, message: str, timeout: int = 5):
+    """发通知
+    
+    """
+    with suppress(Exception):
+        from plyer import notification  # type: ignore
+        with suppress(Exception):
+            notification.notify(title=title, message=message, app_name='NCM-Playlist-Downloader', timeout=timeout)
+            return
+    system = platform.system()
+    with suppress(Exception):
+        if system == 'Darwin':
+            # 使用 AppleScript 显示通知
+            safe_title = title.replace('"', '\\"')
+            safe_msg = message.replace('"', '\\"')
+            subprocess.run(['osascript', '-e', f'display notification "{safe_msg}" with title "{safe_title}"'], check=False)
+            return
+        elif system == 'Linux':
+            if shutil.which('notify-send'):
+                subprocess.run(['notify-send', title, message], check=False)
+                return
+        elif system == 'Windows':
+            ps = f"""
+$title = \"{title.replace('"', '\\"')}\"
+$text = \"{message.replace('"', '\\"')}\"
+[reflection.assembly]::loadwithpartialname('System.Windows.Forms') | Out-Null
+[reflection.assembly]::loadwithpartialname('System.Drawing') | Out-Null
+$n = New-Object System.Windows.Forms.NotifyIcon
+$n.Icon = [System.Drawing.SystemIcons]::Information
+$n.BalloonTipTitle = $title
+$n.BalloonTipText = $text
+$n.Visible = $true
+$n.ShowBalloonTip({int(timeout * 1000)})
+Start-Sleep -Seconds {max(1, int(timeout))}
+$n.Dispose()
+"""
+            with suppress(Exception):
+                subprocess.Popen(['powershell', '-NoProfile', '-Command', ps], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+
+
 def get_clipboard_text():
     """优先尝试 pyperclip，再降级到平台命令获取剪贴板内容，失败返回空字符串。"""
     with suppress(Exception):
@@ -1625,9 +1667,10 @@ if __name__ == '__main__':
             print('> 音质 选项')
             print('\x1b[94mi 有关于音质选项的详细说明，请参阅 https://github.com/padoru233/NCM-Playlist-Downloader/blob/main/README.md#音质说明\x1b[0m')
             print('可使用的音质选项：')
-            opts = [('standard', '标准 MP3 128kbps'), ('exhigh', '极高 MP3 320kbps'), ('lossless', '无损 FLAC 48kHz/16bit'), ('hires', '高解析度无损 FLAC 192kHz/16bit'), ('jymaster', '高清臻音 FLAC 96kHz/24bit')]
+            opts = [('standard', '标准\t  MP3\t  128kbps'), ('exhigh', '极高\t  MP3\t  320kbps'), ('lossless', '无损\t  FLAC\t  48kHz/16bit'), ('hires', '高解析度\tFLAC\t192kHz/16bit'), ('jymaster', '高清臻音\tFLAC\t96kHz/24bit')]
             for i, (val, zh) in enumerate(opts, 1):
                 flag = '\x1b[44m' if config['level'] == val else ''
+                zh = zh.expandtabs(8)
                 print(f'\x1b[36m[{i}]\x1b[0m {flag}{zh} ({val})\x1b[0m ')
             print('\n\x1b[36m[0]\x1b[0m 取消')
             sel = input('\x1b[36m> \x1b[0m').strip()
@@ -1636,23 +1679,25 @@ if __name__ == '__main__':
                 config['level'] = mapping[sel]
 
         def choose_lyrics():
-            print('\x1b[2m\n' + '=' * (terminal_width//2) + '\x1b[0m')
+            print('\x1b[2m' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 歌词 选项')
             print('保存歌词的方式：')
-            print('\x1b[36m[1]\x1b[0m 写入标签和文件')
-            print('\x1b[36m[2]\x1b[0m 只写入标签')
-            print('\x1b[36m[3]\x1b[0m 只写入lrc文件')
-            print('\x1b[36m[4]\x1b[0m 不处理歌词')
+            # 使用与 choose_level 相同的 opts/mapping 模式，便于展示和扩展
+            opts = [
+                ('both', '写入标签和文件'),
+                ('metadata', '只写入标签'),
+                ('lrc', '只写入lrc文件'),
+                ('none', '不处理歌词'),
+            ]
+            for i, (val, zh) in enumerate(opts, 1):
+                flag = '\x1b[44m' if config.get('lyrics_option') == val else ''
+                zh = zh.expandtabs(8)
+                print(f"\x1b[36m[{i}]\x1b[0m {flag}{zh} ({val})\x1b[0m ")
             print('\n\x1b[36m[0]\x1b[0m 取消')
             sel = input('\x1b[36m> \x1b[0m').strip()
-            if sel == '1':
-                config['lyrics_option'] = 'both'
-            elif sel == '2':
-                config['lyrics_option'] = 'metadata'
-            elif sel == '3':
-                config['lyrics_option'] = 'lrc'
-            elif sel == '4':
-                config['lyrics_option'] = 'none'
+            mapping = {str(i): v for i, (v, _) in enumerate(opts, 1)}
+            if sel in mapping:
+                config['lyrics_option'] = mapping[sel]
 
         def refresh_preview():
             try:
@@ -1788,7 +1833,13 @@ if __name__ == '__main__':
                 else:
                     get_track_info(selected_id, config['level'], config['download_path'])
                 print('\x1b[?25h', end='')
-                break
+                print('\n\x1b[32m✓ 下载任务已完成！\x1b[0m')
+                try:
+                    # 完成任务后发送桌面通知（非阻塞，失败则静默）
+                    send_desktop_notification('下载已完成！', f'歌曲已保存到 {config.get("download_path", "downloads")}')
+                except Exception:
+                    pass
+                continue_prompt = input('\x1b[33m  按回车键返回主菜单，按\x1b[31m Ctrl + C \x1b[33m退出程序。\x1b[0m')
             else:
                 pass
     except KeyboardInterrupt:
