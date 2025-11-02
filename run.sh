@@ -1,35 +1,26 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+# -------------------------------------------------------------
+# 您正在阅读此脚本的源代码。
+# 若要运行 Downloader，请右键此脚本选择“作为程序运行”
+# 或使用终端执行此脚本
+# sh ./run.sh
+# -------------------------------------------------------------
 
-# ------------------------------
-# NCM Playlist Downloader Runner
-# Linux / Termux / macOS
-# 与 run.bat 逻辑一致：
-# - 创建或复用 venv
-# - 激活并检查 pip
-# - 使用清华源安装依赖（首次或缺失时）
-# - 运行 script.py
-# ------------------------------
+
+set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
 trap 'echo "发生错误，脚本终止" >&2' ERR
 
-# 设置终端标题（尽量兼容）
 printf "\033]0;网易云音乐下载器\007" || true
 
-# 如果不是在交互式终端中运行，尝试在终端里重新打开脚本
-# - Linux: 尝试常见终端模拟器
-# - macOS: 使用 osascript 打开 Terminal 并执行
-# - Termux: 通常已在交互式环境，跳过
 if [ ! -t 0 ] && [ -z "${CI:-}" ]; then
-    # Termux 检测：$PREFIX 通常为 /data/data/com.termux/files/usr
     if [[ "${PREFIX:-}" == *com.termux* ]]; then
-        : # 已在 Termux 环境，继续执行
+        : # termux: ok
     elif [[ "$OSTYPE" == darwin* ]] && command -v osascript >/dev/null 2>&1; then
-        # macOS 在 Terminal 中打开并执行本脚本
         osascript <<EOF
 tell application "Terminal"
     activate

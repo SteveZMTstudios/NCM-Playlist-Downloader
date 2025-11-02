@@ -8,10 +8,15 @@ if %errorlevel% neq 0 (
     python3 --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo 检测到未安装Python或未配置环境变量，请先安装Python 3.6及以上版本。
+        echo 若 Microsoft Store未自动打开，请访问 https://www.python.org/downloads/ 下载并安装。
+        start https://www.python.org/downloads/
         exit /b
     ) else (
         set PYTHON_CMD=python3
     )
+    
+) else (
+    set PYTHON_CMD=python
 )
 
 if not exist venv (
@@ -38,11 +43,14 @@ if "%DEPS_INSTALLED%"=="false" (
 ) else (
     echo 依赖检查完成...
 )
+
 cls
+
 %PYTHON_CMD% script.py
 if %errorlevel% neq 0 (
     echo 程序未正常退出，正在清理...
     rmdir /s /q venv
+    exit /b
 )
 
 deactivate
