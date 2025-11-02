@@ -280,10 +280,13 @@ def get_qrcode():
                 if m == '2':
                     try:
                         import getpass
-                        password = getpass.getpass('  输入密码 > ', echo_char='*')
+                        try:
+                            password = getpass.getpass('  输入密码 > ', echo_char='*')
+                        except TypeError:
+                            password = getpass.getpass('  输入密码 > ')
                     except Exception as e:
-                        if DEBUG: print(e)
-                        password = input('  ！输入密码 > ')
+                        if DEBUG: print(e.__class__, e)
+                        password = input('  输入密码 > ')
                     rsp = login.LoginViaCellphone(phone, password=password, ctcode=ctcode)
                     code = rsp.get('code') if isinstance(rsp, dict) else None
                     if code == 200:
