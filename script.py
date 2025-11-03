@@ -14,10 +14,6 @@ try:
 except ImportError as e:
     if DEBUG: print(e)
     COLORAMA_INSTALLED = False
-    if platform.system() == 'Windows':
-        os.system('pip install colorama')
-if platform.system() == 'Windows':
-    os.system('')
 import mutagen # pyright: ignore[reportMissingImports]
 from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB, TRCK, TDRC # pyright: ignore[reportMissingImports]
 from mutagen.flac import FLAC, Picture # pyright: ignore[reportMissingImports]
@@ -28,10 +24,8 @@ MUTAGEN_INSTALLED = True
 USER_INFO_CACHE = {'nickname': None, 'user_id': None, 'vip': None}
 
 
-def send_desktop_notification(title: str, message: str, timeout: int = 5):
-    """发通知
-    
-    """
+def send_notification(title: str, message: str, timeout: int = 5):
+    """发通知"""
     with suppress(Exception):
         from plyer import notification  # type: ignore
         with suppress(Exception):
@@ -48,6 +42,15 @@ def send_desktop_notification(title: str, message: str, timeout: int = 5):
         elif system == 'Linux':
             if shutil.which('notify-send'):
                 subprocess.run(['notify-send', title, message], check=False)
+                return
+            elif shutil.which('zenity'):
+                subprocess.run(['zenity', '--notification', '--text', message, '--title', title], check=False)
+                return
+            elif shutil.which('kdialog'):
+                subprocess.run(['kdialog', '--passivepopup', message, str(timeout), '--title', title], check=False)
+                return
+            elif shutil.which('termux-notification'):
+                subprocess.run(['termux-notification', '--title', title, '--content', message], check=False)
                 return
         elif system == 'Windows':
             ps = f"""
@@ -271,7 +274,10 @@ def get_qrcode():
                             print('  二维码已过期，请重新尝试。')
                             break
                         elif code == 802:
-                            print(f'\x1b[33m  用户扫码成功，请在手机端确认登录。\x1b[0m\x1b[K')
+                            if not hasattr(wrapper, '_802_displayed'):
+                                send_notification('扫码登录', '扫码成功，请在手机端确认登录。')
+                                print(f'\x1b[33m  用户扫码成功，请在手机端确认登录。\x1b[0m\x1b[K')
+                                wrapper._802_displayed = True
                         elif code != 801:
                             msg = rsp.get('message') if isinstance(rsp, dict) else None
                             print(f'\x1b[31m× 二维码检查失败，出现未知错误: {msg}\x1b[0m\x1b[K')
@@ -1533,6 +1539,7 @@ def display_user_info(session=None, silent=False):
         except Exception:
             vip_str = str(vip_val)
         if not silent:
+            send_notification('登录成功', f'欢迎，{nick}！')
             print(f'\x1b[32m✓ 已登录: \x1b[36m{nick}\x1b[0m (ID: {uid}) 状态: \x1b[33m{vip_str}\x1b[0m' if uid != '-' else f'\x1b[31m× 登录失败！\n  删除session.json后重新登录或反馈给开发者。\x1b[0m')
         USER_INFO_CACHE.update(info)
         return info
@@ -1542,10 +1549,12 @@ def display_user_info(session=None, silent=False):
         return {'nickname': None, 'user_id': None, 'vip': None}
     
 if __name__ == '__main__':
+    if 'DEBUG' not in globals() or not isinstance(DEBUG, bool):
+        DEBUG = False
     try:
         terminal_width, _ = get_terminal_size()
         if terminal_width >= 88:
-            print(" __. __. ____. . . . . . . .  ____. . ___. . \x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m.\x1b[0m . . . . .  ___. . . . . . .  __. . . \n/\\ \\/\\ \\/\\. _`\\.  /'\\_/`\\. . /\\. _`\\ /\\_ \\.\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. . . .  /\\_ \\.  __. . . . /\\ \\__.  \n\\ \\ `\\\\ \\ \\ \\/\\_\\/\\. . . \\.  \\ \\ \\L\x1b[0m\\\x1b[0m\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m \x1b[0m\\\x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m.\x1b[0m . __. __\\//\\ \\ /\\_\\. . ___\\ \\ ,_\\. \n \\ \\ , ` \\ \\ \\/_/\\ \\ \\__\\ \\.  \\ \\\x1b[0m \x1b[0m\x1b[31m,\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\ \x1b[31m\\\x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m \x1b[0m/'__`\\ /\\ \\/\\ \\ \\ \\ \\\\/\\ \\. /',__\\ \\ \\/. \n. \\ \\ \\`\\ \\ \\ \\L\\ \\ \\ \\_/\\ \\.  \\\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[0m.\x1b[0m  \\\x1b[0m_\x1b[0m\x1b[0m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[0m\\\x1b[0m\x1b[0mL\x1b[0m\\.\\\\ \\ \\_\\ \\ \\_\\ \\\\ \\ \\/\\__, `\\ \\ \\_ \n.  \\ \\_\\ \\_\\ \\____/\\ \\_\\\\ \\_\\. \x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[0m_\x1b[0m\\. \x1b[0m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[0m.\x1b[0m\\_\\/`____ \\/\\____\\ \\_\\/\\____/\\ \\__\\\n. . \\/_/\\/_/\\/___/. \\/_/ \\/_/.\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m/_/.\x1b[31m \x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m/\x1b[0m\x1b[0m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[0m_\x1b[0m/`/___/> \\/____/\\/_/\\/___/. \\/__/\n. . . . . . . . . . . . . . . \x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. \x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m.  /\\___/. . . . . . . . . . .  \n. . . . . . . . . . . . . . .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m . \x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m.  \\/__/. . . . . . . . . . . . \n ____. . . . . . . . . . . . .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m ___\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m . \x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m. .  __. . . . . . . . . . . .  \n/\\. _`\\. . . . . . . . . . . .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m \x1b[0m\x1b[0m/\x1b[0m\\_ \\\x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m . .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m .  /\\ \\. . . . . . . . . . . . \n\\ \\ \\/\\ \\.  ___.  __. __. __.  \x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m/\x1b[0m/\\ \\.\x1b[0m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m \x1b[0m___. .\x1b[35m \x1b[0m\x1b[31m \x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[0m.\x1b[0m .  \\_\\ \\. .  __. _ __. . . . . \n \\ \\ \\ \\ \\ / __`\\/\\ \\/\\ \\/\\ \\/' \x1b[0m_\x1b[0m\x1b[31m \x1b[0m\x1b[31m`\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\ \\.  / __\x1b[0m`\x1b[0m\x1b[0m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m'\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m`\\.  /'_` \\. /'__`/\\`'__\\. . . . \n. \\ \\ \\_\\ /\\ \\L\\ \\ \\ \\_/ \\_/ /\\ \\\x1b[0m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[0m\\\x1b[0m\x1b[0m_\x1b[0m\x1b[0m/\x1b[0m\x1b[0m\\\x1b[0m\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31mL\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\L\\.\\_/\\ \\L\\ \\/\\. __\\ \\ \\/. . . .  \n.  \\ \\____\\ \\____/\\ \\___x___/\\ \\_\\ \\\x1b[0m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m\\\x1b[0m \\__/.\\_\\ \\___,_\\ \\____\\ \\_\\. . . .  \n. . \\/___/ \\/___/. \\/__//__/. \\/_/\\/_\\/_\x1b[0m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m/\x1b[0m\x1b[0m\\\x1b[0m\x1b[0m/\x1b[0m\x1b[0m_\x1b[0m__/ \\/__/\\/_/\\/__,_ /\\/____/\\/_/. . . .  \n\n\n                                                  Netease Cloud Music Playlist Downloader")
+            print(" __. __. ____. . . . . . . .  ____. . ___. . \x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m.\x1b[0m . . . . .  ___. . . . . . .  __. . . \n/\\ \\/\\ \\/\\. _`\\.  /'\\_/`\\. . /\\. _`\\ /\\_ \\.\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. . . .  /\\_ \\.  __. . . . /\\ \\__.  \n\\ \\ `\\\\ \\ \\ \\/\\_\\/\\. . . \\.  \\ \\ \\L\x1b[0m\\\x1b[0m\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m \x1b[0m\\\x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m.\x1b[0m . __. __\\//\\ \\ /\\_\\. . ___\\ \\ ,_\\. \n \\ \\ , ` \\ \\ \\/_/\\ \\ \\__\\ \\.  \\ \\\x1b[0m \x1b[0m\x1b[31m,\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\ \x1b[31m\\\x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m \x1b[0m/'__`\\ /\\ \\/\\ \\ \\ \\ \\\\/\\ \\. /',__\\ \\ \\/. \n. \\ \\ \\`\\ \\ \\ \\L\\ \\ \\ \\_/\\ \\.  \\\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[0m.\x1b[0m  \\\x1b[0m_\x1b[0m\x1b[0m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[0m\\\x1b[0m\x1b[0mL\x1b[0m\\.\\\\ \\ \\_\\ \\ \\_\\ \\\\ \\ \\/\\__, `\\ \\ \\_ \n.  \\ \\_\\ \\_\\ \\____/\\ \\_\\\\ \\_\\. \x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[0m_\x1b[0m\\. \x1b[0m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[0m.\x1b[0m\\_\\/`____ \\/\\____\\ \\_\\/\\____/\\ \\__\\\n. . \\/_/\\/_/\\/___/. \\/_/ \\/_/.\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m/_/.\x1b[31m \x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m/\x1b[0m\x1b[0m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m/\x1b[0m\x1b[0m_\x1b[0m/`/___/> \\/____/\\/_/\\/___/. \\/__/\n. . . . . . . . . . . . . . . \x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. \x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m.  /\\___/. . . . . . . . . . .  \n. . . . . . . . . . . . . . .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m. .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m . \x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m.  \\/__/. . . . . . . . . . . . \n ____. . . . . . . . . . . . .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m ___\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m . \x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m. .  __. . . . . . . . . . . .  \n/\\. _`\\. . . . . . . . . . . .\x1b[0m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m \x1b[0m\x1b[0m/\x1b[0m\\_ \\\x1b[0m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[0m.\x1b[0m . .\x1b[31m \x1b[0m\x1b[31m.\x1b[0m\x1b[31m \x1b[0m\x1b[31m.\x1b[0m .  /\\ \\. . . . . . . . . . . . \n\\ \\ \\/\\ \\.  ___.  __. __. __.  \x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m/\x1b[0m/\\ \\.\x1b[0m \x1b[0m\x1b[0m.\x1b[0m\x1b[0m \x1b[0m\x1b[0m \x1b[0m___. .\x1b[35m \x1b[0m\x1b[31m \x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[0m.\x1b[0m .  \\_\\ \\. .  __. _ __. . . . . \n \\ \\ \\ \\ \\ / __`\\/\\ \\/\\ \\/\\ \\/' \x1b[0m_\x1b[0m\x1b[31m \x1b[0m\x1b[31m`\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\ \\.  / __\x1b[0m`\x1b[0m\x1b[0m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m'\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m`\\.  /'_` \\. /'__`/\\`'__\\. . . . \n. \\ \\ \\_\\ /\\ \\L\\ \\ \\ \\_/ \\_/ /\\ \\\x1b[0m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[0m\\\x1b[0m\x1b[0m_\x1b[0m\x1b[0m/\x1b[0m\x1b[0m\\\x1b[0m\x1b[0m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31mL\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[0m \x1b[0m\\L\\.\\_/\\ \\L\\ \\/\\. __\\ \\ \\/. . . .  \n.  \\ \\____\\ \\____/\\ \\___x___/\\ \\_\\ \\\x1b[0m_\x1b[0m\x1b[31m/\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m\\\x1b[0m\x1b[31m \x1b[0m\x1b[31m\\\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[31m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m\\\x1b[0m \\__/.\\_\\ \\___,_\\ \\____\\ \\_\\. . . .  \n. . \\/___/ \\/___/. \\/__//__/. \\/_/\\/_\\/_\x1b[0m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m_\x1b[0m\x1b[0m/\x1b[0m\x1b[0m\\\x1b[0m\x1b[0m/\x1b[0m\x1b[0m_\x1b[0m__/ \\/__/\\/_/\\/__,_ /\\/____/\\/_/. . . .  \n\n\n"+" "*49+"Netease Cloud Music Playlist Downloader")
         else:
             print('\n\nNetease Cloud Music Playlist Downloader')
             print('\x1b[33m! 您的终端窗口宽度小于88个字符，部分特性已被停用。\x1b[0m')
@@ -1682,7 +1691,6 @@ if __name__ == '__main__':
             print('\x1b[2m' + '=' * (terminal_width//2) + '\x1b[0m')
             print('> 歌词 选项')
             print('保存歌词的方式：')
-            # 使用与 choose_level 相同的 opts/mapping 模式，便于展示和扩展
             opts = [
                 ('both', '写入标签和文件'),
                 ('metadata', '只写入标签'),
@@ -1691,7 +1699,6 @@ if __name__ == '__main__':
             ]
             for i, (val, zh) in enumerate(opts, 1):
                 flag = '\x1b[44m' if config.get('lyrics_option') == val else ''
-                zh = zh.expandtabs(8)
                 print(f"\x1b[36m[{i}]\x1b[0m {flag}{zh} ({val})\x1b[0m ")
             print('\n\x1b[36m[0]\x1b[0m 取消')
             sel = input('\x1b[36m> \x1b[0m').strip()
@@ -1834,11 +1841,9 @@ if __name__ == '__main__':
                     get_track_info(selected_id, config['level'], config['download_path'])
                 print('\x1b[?25h', end='')
                 print('\n\x1b[32m✓ 下载任务已完成！\x1b[0m')
-                try:
-                    # 完成任务后发送桌面通知（非阻塞，失败则静默）
-                    send_desktop_notification('下载已完成！', f'歌曲已保存到 {config.get("download_path", "downloads")}')
-                except Exception:
-                    pass
+                with suppress(Exception):
+                    send_notification('下载已完成！', f'歌曲已保存到 {config.get("download_path", "downloads")}')
+                
                 continue_prompt = input('\x1b[33m  按回车键返回主菜单，按\x1b[31m Ctrl + C \x1b[33m退出程序。\x1b[0m')
             else:
                 pass
@@ -1856,13 +1861,10 @@ if __name__ == '__main__':
             if resp == '9':
                 removed = []
                 for fn in ('session.json', 'session2.json'):
-                    try:
+                    with suppress(Exception):
                         if os.path.exists(fn):
                             os.remove(fn)
                             removed.append(fn)
-                    except Exception:
-                        # 忽略单个文件删除错误
-                        pass
                 if removed:
                     print('\x1b[32m✓ 已删除会话文件：' + ', '.join(removed) + '\x1b[0m')
                 else:
@@ -1872,3 +1874,4 @@ if __name__ == '__main__':
         finally:
             # 保证光标可见
             print('\x1b[?25h', end='')
+            
