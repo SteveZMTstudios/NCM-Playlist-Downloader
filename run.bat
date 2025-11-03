@@ -7,10 +7,30 @@ python --version >nul 2>&1
 if %errorlevel% neq 0 (
     python3 --version >nul 2>&1
     if %errorlevel% neq 0 (
-        echo 检测到未安装Python或未配置环境变量，请先安装Python 3.6及以上版本。
-        echo 若 Microsoft Store未自动打开，请访问 https://www.python.org/downloads/ 下载并安装。
-        start https://www.python.org/downloads/
-        exit /b
+        REM 未在 PATH 中找到 python 或 python3，尝试在 %LOCALAPPDATA% 下查找常见安装位置
+        echo 未在 PATH 中找到 Python，正在检查 %LOCALAPPDATA% 下的常见路径...
+        set "PYTHON_CMD="
+        rem 使用 for /d 遍历 Programs\Python\Python* 目录（避免在某些情况下对通配符的不可靠处理）
+        for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python*") do (
+            if exist "%%~fD\python.exe" (
+                set "PYTHON_CMD=%%~fD\python.exe"
+                goto __py_found
+            )
+        )
+        rem 检查 WindowsApps 的 python 快捷（可能存在于 Microsoft Store 安装）
+        if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe" (
+            set "PYTHON_CMD=%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe"
+            goto __py_found
+        )
+        rem 如果仍未找到，则提示用户并打开下载页面
+        if "%PYTHON_CMD%"=="" (
+            echo 检测到未安装Python或未配置环境变量，请先安装Python 3.6及以上版本。
+            echo 若 Microsoft Store未自动打开，请访问 https://www.python.org/downloads/ 下载并安装。
+            start https://www.python.org/downloads/
+            exit /b
+        )
+        :__py_found
+        echo 找到 Python: %PYTHON_CMD%
     ) else (
         set PYTHON_CMD=python3
     )

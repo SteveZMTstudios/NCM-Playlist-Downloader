@@ -53,9 +53,13 @@ def send_notification(title: str, message: str, timeout: int = 5):
                 subprocess.run(['termux-notification', '--title', title, '--content', message], check=False)
                 return
         elif system == 'Windows':
+            # Avoid using backslashes inside f-string expressions (Python 3.8 limitation).
+            # Precompute escaped title/message, then use simple variable expressions in the f-string.
+            safe_title = title.replace('"', '\\"')
+            safe_msg = message.replace('"', '\\"')
             ps = f"""
-$title = \"{title.replace('"', '\\"')}\"
-$text = \"{message.replace('"', '\\"')}\"
+$title = \"{safe_title}\"
+$text = \"{safe_msg}\"
 [reflection.assembly]::loadwithpartialname('System.Windows.Forms') | Out-Null
 [reflection.assembly]::loadwithpartialname('System.Drawing') | Out-Null
 $n = New-Object System.Windows.Forms.NotifyIcon
