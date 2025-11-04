@@ -1190,7 +1190,7 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                     digits = len(str(total)) if (index is not None and total is not None) else 0
                     idx_str = f"[{index:0{digits}d}/{total}] " if (index is not None and total is not None) else ''
                     # 预估基础行（用于是否采用新样式判断）
-                    base_core = f"100.0% {idx_str}正在下载:...   999.99MB/999.99MB 99999KB/s 9999s"
+                    base_core = f"100.0% {idx_str}正在下载:...   99.99MB/99.99MB 99999KB/s 9999s"
                     use_single_line = term_w >= 60 and len(base_core) <= term_w - 2  # 预留一点余量
                     downloaded = 0
                     last_downloaded = 0
@@ -1215,12 +1215,18 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                             m = int((eta % 3600) // 60)
                             return f'{h}h{m:02d}m'
 
-                    # 宽度计算工具：考虑中日韩全角字符宽度=2
-                    
+                    # 宽度计算工具：考虑中日韩全角字符宽度=2，并修正省略号“…”等特殊字符
 
                     def cell_width(ch: str) -> int:
                         if not ch:
                             return 0
+                        # 常见零宽字符（组合符号/格式控制）按0宽处理
+                        cat = unicodedata.category(ch)
+                        if cat in ('Mn', 'Me', 'Cf'):
+                            return 0
+                        # 单字符省略号在部分终端为宽字符，按2宽处理以避免对齐错位
+                        if ch == '…':
+                            return 2
                         eaw = unicodedata.east_asian_width(ch)
                         return 2 if eaw in ('W', 'F') else 1
 
@@ -1289,14 +1295,22 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                                 except Exception:
                                     pass
                                 # 重新判断是否仍适合单行
-                                dynamic_base = f"{idx_str}正在下载:...... 100.0%  999.99MB/999.99MB 99999KB/s 9999s"
+                                dynamic_base = f"{idx_str}正在下载:... 100.0%  99.99MB/99.99MB 99999KB/s 9999s"
                                 if not (term_w >= 60 and display_width(dynamic_base) <= term_w - 2):
                                     # 切换到窄终端备用模式，确保稍后打印首行
                                     use_single_line = False
                                     # 立即打印首行（若尚未打印）
                                     if not fallback_header_printed:
+                                        # 在窄终端打印精简标题行，必要时对文件名进行截断
                                         progress_status = idx_str
-                                        print(f'\x1b[94m{progress_status}正在下载: {safe_filename}\x1b[0m')
+                                        try:
+                                            term_w, _ = get_terminal_size()
+                                        except Exception:
+                                            pass
+                                        prefix_plain = f"{progress_status}正在下载: "
+                                        max_name_w = max(0, term_w - display_width(prefix_plain) - 1)
+                                        disp_name = truncate_filename(safe_filename, max_name_w) if display_width(safe_filename) > max_name_w else safe_filename
+                                        print(f'\x1b[94m{progress_status}正在下载: {disp_name}\x1b[0m')
                                         fallback_header_printed = True
                                     continue
                                 # 百分比文本（不带前导0）
@@ -1369,7 +1383,14 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                                 # 旧窄终端备用方案：只打印一次标题行
                                 if not fallback_header_printed:
                                     progress_status = idx_str
-                                    print(f'\x1b[94m{progress_status}正在下载: {safe_filename}\x1b[0m')
+                                    try:
+                                        term_w, _ = get_terminal_size()
+                                    except Exception:
+                                        pass
+                                    prefix_plain = f"{progress_status}正在下载: "
+                                    max_name_w = max(0, term_w - display_width(prefix_plain) - 1)
+                                    disp_name = truncate_filename(safe_filename, max_name_w) if display_width(safe_filename) > max_name_w else safe_filename
+                                    print(f'\x1b[94m{progress_status}正在下载: {disp_name}\x1b[0m')
                                     fallback_header_printed = True
                                 # 不再实时输出进度，完成后输出成功信息
                         else:
@@ -1399,7 +1420,15 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                     sys.stdout.write('\r' + ' ' * term_w + '\r')
                 except Exception:
                     pass
-                print(f'\x1b[32m✓ 已下载: \x1b[0m{safe_filename}\x1b[K')
+                print(f'\x1b[32m✓ 已下载{progress_status}\x1b[0m{safe_filename}\x1b[K')
+                # try:
+                #     term_w, _ = get_terminal_size()
+                # except Exception:
+                #     pass
+                # prefix_plain = '✓ 已下载: '
+                # max_name_w = max(0, term_w - display_width(prefix_plain) - 1)
+                # disp_name = safe_filename if display_width(safe_filename) <= max_name_w else truncate_filename(safe_filename, max_name_w)
+                # print(f'\x1b[32m✓ 已下载: \x1b[0m{disp_name}\x1b[K')
             else:
                 # 旧样式成功信息
                 try:
@@ -1409,7 +1438,14 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                 except Exception:
                     pass
                 progress_status = f'[{index}/{total}] ' if (index is not None and total is not None) else ''
-                print(f'\x1b[32m✓ 已下载{progress_status}\x1b[0m{safe_filename}\x1b[K')
+                try:
+                    term_w, _ = get_terminal_size()
+                except Exception:
+                    pass
+                prefix_plain = f"✓ 已下载{progress_status}"
+                max_name_w = max(0, term_w - display_width(prefix_plain) - 1)
+                disp_name = safe_filename if display_width(safe_filename) <= max_name_w else truncate_filename(safe_filename, max_name_w)
+                print(f'\x1b[32m✓ 已下载{progress_status}\x1b[0m{disp_name}\x1b[K')
             try:
                 audio = MutagenFile(safe_filepath)
                 if audio is not None and hasattr(audio, 'info') and hasattr(audio.info, 'length'):
