@@ -69,7 +69,7 @@ cls
 if %errorlevel% neq 0 (
     echo 程序未正常退出，正在清理...
     rmdir /s /q venv
-    exit /b
+    exit /b %errorlevel%
 )
 
 deactivate

@@ -13,7 +13,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
-trap 'echo "发生错误，脚本终止" >&2' ERR
+trap 'echo "发生错误，脚本终止" >&2; exit 1' ERR
 
 printf "\033]0;网易云音乐下载器\007" || true
 
