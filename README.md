@@ -20,7 +20,7 @@
 运行终端，输入以下命令：
 
 ```bash
-pip install +https://github.com/padoru233/NCM-Playlist-Downloader.git
+pip install git+https://github.com/padoru233/NCM-Playlist-Downloader.git
 ncmdl
 ```
 
@@ -239,6 +239,7 @@ python -m pytest tests/test_script.py -q
 
 ## 鸣谢
 - [pyncm](https://github.com/mos9527/pyncm)
+
 
 
 
