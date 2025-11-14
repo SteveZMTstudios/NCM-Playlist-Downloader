@@ -13,9 +13,14 @@
 
 
 
+
+
 确保你已经安装了`git` `python-3.6`以上版本，然后运行以下命令  
 
-### PIP 安装（推荐）
+### 下载并运行
+[![Code download](https://img.shields.io/badge/Code-Download-green?logo=Github)](https://github.com/padoru233/NCM-Playlist-Downloader/archive/refs/heads/main.zip)
+
+### PIP 安装
 
 运行终端，输入以下命令：
 

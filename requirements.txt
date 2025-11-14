@@ -7,3 +7,4 @@ mutagen
 Pillow
 selenium
 plyer
+webdriver-manager

@@ -256,6 +256,7 @@ def get_qrcode():
                     open_image(img_path)
                 except Exception as e:
                     print(f'{e}，请手动打开 ncm.png 文件进行扫码登录')
+                __802_displayed = False
                 max_polls = 180
                 for attempt in range(max_polls):
                     try:
@@ -278,10 +279,10 @@ def get_qrcode():
                             print('  二维码已过期，请重新尝试。')
                             break
                         elif code == 802:
-                            if not hasattr(wrapper, '_802_displayed'):
+                            if not __802_displayed:
                                 send_notification('扫码登录', '扫码成功，请在手机端确认登录。')
                                 print(f'\x1b[33m  用户扫码成功，请在手机端确认登录。\x1b[0m\x1b[K')
-                                wrapper._802_displayed = True
+                                __802_displayed = True
                         elif code != 801:
                             msg = rsp.get('message') if isinstance(rsp, dict) else None
                             print(f'\x1b[31m× 二维码检查失败，出现未知错误: {msg}\x1b[0m\x1b[K')
