@@ -938,6 +938,8 @@ def parse_lrc(lrc_content):
             lyrics.append((time_seconds, text))
     return sorted(lyrics, key=lambda x: x[0])
 
+LYRIC_TRANSLATION_GAP = 0.01
+
 def merge_lyrics(original_lyrics, translated_lyrics, song_duration=None):
     if not translated_lyrics:
         return original_lyrics
@@ -946,13 +948,17 @@ def merge_lyrics(original_lyrics, translated_lyrics, song_duration=None):
     for i, (time, text) in enumerate(original_lyrics):
         merged.append((time, text))
         if time in trans_dict and trans_dict[time].strip():
-            if i + 1 >= len(original_lyrics) and song_duration:
-                trans_time = song_duration + 0.5
-            elif i + 1 < len(original_lyrics):
+            trans_time = time + LYRIC_TRANSLATION_GAP
+            if i + 1 < len(original_lyrics):
                 next_time = original_lyrics[i + 1][0]
-                trans_time = next_time - 0.01
+                latest_before_next = next_time - LYRIC_TRANSLATION_GAP
+                if latest_before_next >= trans_time:
+                    trans_time = latest_before_next
+                else:
+                    trans_time = max(time, latest_before_next)
             else:
-                trans_time = time + 0.5
+                tail_time = (song_duration + 0.5) if song_duration else (time + 0.5)
+                trans_time = max(trans_time, tail_time, time + LYRIC_TRANSLATION_GAP)
             merged.append((trans_time, trans_dict[time]))
     return sorted(merged, key=lambda x: x[0])
 
@@ -1229,7 +1235,11 @@ def download_and_save_track(track_id, track_name, artist_name, level, download_p
                         if ch == '…':
                             return 2
                         eaw = unicodedata.east_asian_width(ch)
-                        return 2 if eaw in ('W', 'F') else 1
+                        if eaw in ('W', 'F'):
+                            return 2
+                        if eaw == 'A' and cat.startswith('S'):
+                            return 2
+                        return 1
 
                     def display_width(text: str) -> int:
                         return sum(cell_width(c) for c in text)
